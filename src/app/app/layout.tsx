@@ -55,11 +55,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <span className="mx-2">·</span>
             <span>都更公聽會分析</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <Button size="sm" variant="outline">
               邀請協作者
             </Button>
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-primary to-deep_axis text-xs font-medium text-primary-foreground">
+            <div className="flex h-8 w-8 items-center justify-center rounded-sm border border-foreground/15 bg-muted text-[11px] font-medium text-foreground/80">
               YC
             </div>
           </div>
@@ -95,8 +95,8 @@ function NavLink({
 
 function ProjectSwitcher() {
   return (
-    <button className="flex w-full items-center gap-2 rounded-lg border border-border bg-background p-2 text-left text-sm hover:bg-muted">
-      <div className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-surface_axis to-deep_axis text-[10px] font-bold text-primary-foreground">
+    <button className="flex w-full items-center gap-2.5 rounded-sm border border-border bg-background p-2.5 text-left text-sm hover:bg-muted">
+      <div className="flex h-7 w-7 items-center justify-center rounded-sm border border-foreground/15 bg-muted text-[10px] font-medium text-foreground/80">
         UR
       </div>
       <div className="min-w-0 flex-1">

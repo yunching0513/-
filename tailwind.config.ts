@@ -53,14 +53,19 @@ const config: Config = {
         hybrid_axis: "hsl(var(--hybrid-axis))",
       },
       borderRadius: {
-        xl: "calc(var(--radius) + 4px)",
+        xl: "calc(var(--radius) + 2px)",
         lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        md: "calc(var(--radius) - 1px)",
+        sm: "calc(var(--radius) - 2px)",
       },
       boxShadow: {
-        soft: "0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.06)",
-        glow: "0 0 0 1px hsl(var(--ring) / 0.15), 0 8px 24px -8px hsl(var(--ring) / 0.25)",
+        // Whisper shadows — warm, paper-like, no glow
+        soft: "0 1px 0 0 hsl(30 17% 11% / 0.03), 0 1px 2px 0 hsl(30 17% 11% / 0.04)",
+        glow: "0 0 0 1px hsl(30 17% 11% / 0.06), 0 4px 12px -4px hsl(30 17% 11% / 0.08)",
+      },
+      letterSpacing: {
+        tightish: "-0.012em",
+        widish: "0.04em",
       },
     },
   },

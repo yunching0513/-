@@ -4,62 +4,73 @@
 
 @layer base {
   :root {
-    /* Strata light theme — clean, bright, technical */
-    --background: 210 40% 99%;
-    --foreground: 222 47% 11%;
-    --surface: 0 0% 100%;
+    /* Strata — Benesse-inspired warm paper palette
+     * Inspired by Naoshima / Tadao Ando aesthetic: warm cream paper, ink text,
+     * low-saturation earth accents. Calm, museum-quality, editorial.
+     */
 
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
+    /* Paper & ink */
+    --background: 38 36% 95%;       /* #F7F3EC — warm cream */
+    --foreground: 30 17% 11%;       /* #1F1B16 — warm deep ink */
+    --surface: 36 33% 97%;          /* #FBF7F0 — slightly brighter paper */
 
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 217 91% 60%;
+    --muted: 36 26% 90%;             /* #EFE9DF — pale parchment */
+    --muted-foreground: 33 13% 38%;  /* #6F6555 — warm graphite */
 
-    /* Brand: deep electric blue — academic, technical, bright */
-    --primary: 224 76% 48%;
-    --primary-foreground: 210 40% 98%;
+    --border: 36 22% 84%;            /* #E1D9CB — subtle parchment fold */
+    --input: 36 22% 84%;
+    --ring: 30 25% 30%;              /* #5C4F3F — bronze focus ring */
 
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222 47% 11%;
+    /* Brand: ink-black as primary (gallery-label aesthetic) */
+    --primary: 30 17% 14%;           /* #2A2520 — near-black ink */
+    --primary-foreground: 38 36% 95%;
 
-    --accent: 199 89% 48%;
-    --accent-foreground: 210 40% 98%;
+    --secondary: 36 26% 90%;
+    --secondary-foreground: 30 17% 14%;
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
+    --accent: 13 32% 45%;            /* #97604C — muted terracotta */
+    --accent-foreground: 38 36% 95%;
 
-    /* Coding axes (matches the dual-layer methodology) */
-    --surface-axis: 199 89% 48%;   /* cyan — surface (procedural justice) */
-    --deep-axis: 262 83% 58%;      /* violet — deep (behavioral economics) */
-    --hybrid-axis: 339 90% 51%;    /* magenta — hybrid (interweaving) */
+    --destructive: 6 50% 40%;        /* warm brick, not bright red */
+    --destructive-foreground: 38 36% 95%;
 
-    --radius: 0.625rem;
+    /* Coding axes — low-saturation gallery palette
+     * (the dual-layer methodology stays visually distinguishable but quiet) */
+    --surface-axis: 199 21% 42%;     /* #557785 — muted slate-teal (was bright cyan) */
+    --deep-axis: 264 14% 40%;        /* #5F587A → 6A5B7A muted dusty violet */
+    --hybrid-axis: 13 39% 47%;       /* #A5614A — warm terracotta (was magenta) */
+
+    --radius: 0.375rem;              /* tighter, more editorial than rounded */
   }
 
   .dark {
-    --background: 222 47% 6%;
-    --foreground: 210 40% 98%;
-    --surface: 222 47% 9%;
+    /* Inverted gallery — deep walnut walls, warm ink-on-cream highlights */
+    --background: 30 12% 9%;
+    --foreground: 38 30% 92%;
+    --surface: 30 12% 11%;
 
-    --muted: 217 33% 14%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 30 10% 16%;
+    --muted-foreground: 36 14% 62%;
 
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
-    --ring: 217 91% 60%;
+    --border: 30 10% 20%;
+    --input: 30 10% 20%;
+    --ring: 36 28% 70%;
 
-    --primary: 217 91% 60%;
-    --primary-foreground: 222 47% 11%;
+    --primary: 38 30% 92%;
+    --primary-foreground: 30 12% 9%;
 
-    --secondary: 217 33% 14%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 30 10% 16%;
+    --secondary-foreground: 38 30% 92%;
 
-    --accent: 199 89% 48%;
-    --accent-foreground: 222 47% 11%;
+    --accent: 13 32% 55%;
+    --accent-foreground: 30 12% 9%;
 
-    --destructive: 0 62% 50%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 6 45% 50%;
+    --destructive-foreground: 38 30% 92%;
+
+    --surface-axis: 199 25% 60%;
+    --deep-axis: 264 18% 60%;
+    --hybrid-axis: 13 42% 60%;
   }
 
   * {
@@ -69,23 +80,32 @@
   html, body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "cv11", "ss01", "ss03";
-  }
-
-  /* Subtle grid backdrop for tech feel — very low contrast */
-  .bg-grid {
+    /* Subtle paper grain — barely perceptible warmth */
     background-image:
-      linear-gradient(to right, hsl(var(--border) / 0.5) 1px, transparent 1px),
-      linear-gradient(to bottom, hsl(var(--border) / 0.5) 1px, transparent 1px);
-    background-size: 32px 32px;
-    background-position: -1px -1px;
+      radial-gradient(at 12% 0%, hsl(38 32% 92%) 0, transparent 40%),
+      radial-gradient(at 88% 100%, hsl(36 28% 93%) 0, transparent 40%);
+    background-attachment: fixed;
   }
 
-  .bg-radial-fade {
-    background-image: radial-gradient(
-      ellipse at top,
-      hsl(var(--primary) / 0.08),
-      transparent 60%
-    );
+  /* Quiet utilities replacing the old tech-grid backdrop */
+  .bg-paper {
+    background-color: hsl(var(--background));
+  }
+
+  .rule-top {
+    border-top: 1px solid hsl(var(--border));
+  }
+  .rule-bottom {
+    border-bottom: 1px solid hsl(var(--border));
+  }
+
+  /* Editorial small-caps label — used in section headers */
+  .eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    font-weight: 500;
+    color: hsl(var(--muted-foreground));
   }
 }
 
@@ -101,3 +121,4 @@
     @apply bg-border rounded-full;
   }
 }
+

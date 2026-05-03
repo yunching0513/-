@@ -16,13 +16,14 @@ export default function AppOverviewPage() {
   ).length;
 
   return (
-    <div className="space-y-8 p-8">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">總覽</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          從文件、編碼簿到視覺化儀表板，這是你的研究空間。
+    <div className="space-y-12 p-10">
+      <header>
+        <p className="eyebrow mb-2">總覽</p>
+        <h1 className="text-3xl font-light tracking-tightish">研究空間</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          從文件、編碼簿到視覺化儀表板的概覽。
         </p>
-      </div>
+      </header>
 
       <div className="grid gap-4 md:grid-cols-4">
         <Stat label="文件數" value="1" hint="範例專案" />
