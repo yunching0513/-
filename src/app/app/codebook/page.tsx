@@ -16,6 +16,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { BUILTIN_CODEBOOKS } from "@/lib/codebook/builtin";
 import { parseCodebookJson } from "@/lib/codebook/import";
+import { parseCodebookCsv } from "@/lib/codebook/csv-import";
 import { useStrata } from "@/lib/store/strata";
 import type { Codebook } from "@/lib/codebook/types";
 import { cn } from "@/lib/utils";
@@ -33,10 +34,22 @@ export default function CodebookLibraryPage() {
   async function handleImport(files: FileList | null) {
     if (!files || files.length === 0) return;
     const file = files[0];
+    const ext = file.name.toLowerCase().split(".").pop();
     try {
       const text = await file.text();
-      const json = JSON.parse(text);
-      const cb = parseCodebookJson(json);
+      let cb;
+      if (ext === "csv" || ext === "tsv") {
+        cb = parseCodebookCsv(text, file.name);
+      } else if (ext === "json") {
+        cb = parseCodebookJson(JSON.parse(text));
+      } else {
+        // Fall back: try JSON first, then CSV
+        try {
+          cb = parseCodebookJson(JSON.parse(text));
+        } catch {
+          cb = parseCodebookCsv(text, file.name);
+        }
+      }
       addUserCodebook(cb);
       setError(null);
       setCodebook(cb.codebook_id);
@@ -52,7 +65,7 @@ export default function CodebookLibraryPage() {
           <p className="eyebrow mb-2">編碼簿</p>
           <h1 className="text-3xl font-light tracking-tightish">編碼簿庫</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            選擇內建編碼簿，或匯入你自己的（JSON 格式）。
+            選擇內建編碼簿，或匯入你自己的（JSON 或 CSV 格式）。
           </p>
         </div>
         <Button onClick={() => inputRef.current?.click()}>
@@ -62,7 +75,7 @@ export default function CodebookLibraryPage() {
         <input
           ref={inputRef}
           type="file"
-          accept=".json,application/json"
+          accept=".json,.csv,.tsv,application/json,text/csv"
           className="hidden"
           onChange={(e) => handleImport(e.target.files)}
         />
@@ -109,9 +122,9 @@ export default function CodebookLibraryPage() {
                 onClick={() => inputRef.current?.click()}
                 className="ml-1 underline underline-offset-2 hover:text-foreground"
               >
-                立即匯入 JSON
+                立即匯入 JSON 或 CSV
               </button>
-              {" "}— 或在編碼簿詳細頁點「複製為自訂版本」作為起點。
+              {" "}— 或在編碼簿詳細頁點「下載 CSV」當樣板修改，或「複製為自訂版本」作為起點。
             </CardContent>
           </Card>
         ) : (
