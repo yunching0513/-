@@ -17,7 +17,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/input";
-import { useStrata, useActiveCodebook } from "@/lib/store/strata";
+import { BatchPrecodeDialog } from "@/components/coding/batch-precode-dialog";
+import {
+  useStrata,
+  useActiveCodebook,
+  useActiveDocument,
+  useActiveSegments,
+} from "@/lib/store/strata";
 import type { Codebook, CodedSegment } from "@/lib/codebook/types";
 import { cn } from "@/lib/utils";
 
@@ -28,13 +34,14 @@ type Active =
 
 export default function CodingWorkspacePage() {
   const codebook = useActiveCodebook();
-  const document = useStrata((s) => s.document);
-  const segments = useStrata((s) => s.segments);
+  const document = useActiveDocument();
+  const segments = useActiveSegments();
 
   const [active, setActive] = useState<Active>(
     segments[0] ? { kind: "existing", segment_id: segments[0].id } : null,
   );
   const [popover, setPopover] = useState<{ x: number; y: number } | null>(null);
+  const [batchOpen, setBatchOpen] = useState(false);
 
   // If the focused existing segment gets removed, clear focus
   useEffect(() => {
@@ -67,11 +74,11 @@ export default function CodingWorkspacePage() {
             </div>
           </div>
           <div className="flex gap-2">
-            <Button size="sm" variant="outline">
+            <Button size="sm" variant="outline" onClick={() => setBatchOpen(true)}>
               <Sparkles className="h-4 w-4" />
               AI 預編碼整份
             </Button>
-            <Button size="sm">
+            <Button size="sm" variant="ghost" disabled>
               <Save className="h-4 w-4" />
               已自動儲存
             </Button>
@@ -113,6 +120,15 @@ export default function CodingWorkspacePage() {
         codebook={codebook}
         onClear={() => setActive(null)}
         onCreatedFromDraft={(id) => selectExisting(id)}
+      />
+
+      <BatchPrecodeDialog
+        open={batchOpen}
+        onClose={() => setBatchOpen(false)}
+        documentText={document.parsed_text}
+        documentId={document.id}
+        existingSegments={segments}
+        codebook={codebook}
       />
     </div>
   );

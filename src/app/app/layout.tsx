@@ -9,7 +9,8 @@ import {
   HelpCircle,
 } from "lucide-react";
 import { Wordmark } from "@/components/brand/logo";
-import { Button } from "@/components/ui/button";
+import { DocumentSwitcher } from "@/components/app/document-switcher";
+import { Topbar } from "@/components/app/topbar";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -32,7 +33,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </div>
 
         <div className="px-3 py-4">
-          <ProjectSwitcher />
+          <DocumentSwitcher />
         </div>
 
         <nav className="flex-1 space-y-0.5 px-2">
@@ -49,21 +50,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
       {/* Main */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 items-center justify-between border-b border-border bg-surface px-6">
-          <div className="text-sm text-muted-foreground">
-            <span className="text-foreground">範例專案</span>
-            <span className="mx-2">·</span>
-            <span>都更公聽會分析</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button size="sm" variant="outline">
-              邀請協作者
-            </Button>
-            <div className="flex h-8 w-8 items-center justify-center rounded-sm border border-foreground/15 bg-muted text-[11px] font-medium text-foreground/80">
-              YC
-            </div>
-          </div>
-        </header>
+        <Topbar />
         <main className="min-w-0 flex-1 overflow-y-auto">{children}</main>
       </div>
     </div>
@@ -93,16 +80,3 @@ function NavLink({
   );
 }
 
-function ProjectSwitcher() {
-  return (
-    <button className="flex w-full items-center gap-2.5 rounded-sm border border-border bg-background p-2.5 text-left text-sm hover:bg-muted">
-      <div className="flex h-7 w-7 items-center justify-center rounded-sm border border-foreground/15 bg-muted text-[10px] font-medium text-foreground/80">
-        UR
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-xs font-medium">都更公聽會分析</div>
-        <div className="truncate text-[10px] text-muted-foreground">141 筆編碼 · 雙層</div>
-      </div>
-    </button>
-  );
-}

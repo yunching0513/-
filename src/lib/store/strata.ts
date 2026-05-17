@@ -7,11 +7,9 @@ import { dualLayerPJxBE, BUILTIN_CODEBOOKS } from "../codebook/builtin";
 import { SAMPLE_DOCUMENT, SAMPLE_SEGMENTS } from "../seed/sample-segments";
 
 /**
- * Single source of truth for the user's active project: which codebook,
- * which document, and the full list of coded segments. Persisted to
- * localStorage so work survives reloads.
- *
- * Until Supabase is wired in (Phase 3), this acts as the entire data layer.
+ * Single source of truth for Strata. Persisted to localStorage so work
+ * survives reloads. Until Supabase is wired in (Phase 4), this is the
+ * entire data layer.
  */
 
 export interface StrataDocument {
@@ -25,44 +23,45 @@ export interface StrataDocument {
 
 interface State {
   codebook_id: string;
-  document: StrataDocument;
+  documents: StrataDocument[];
+  active_document_id: string;
+  /** All coded segments across all documents. */
   segments: CodedSegment[];
-  /** User-imported codebooks (Phase 3). */
+  /** User-imported codebooks. */
   userCodebooks: Codebook[];
   /** AI tier preference. */
   ai_tier: "free" | "pro" | "institute";
 }
 
 interface Actions {
-  /** Replace the active codebook (also clears segments if axis ids differ). */
   setCodebook: (codebook_id: string) => void;
-  /** Replace the active document and reset segments. */
-  setDocument: (doc: StrataDocument) => void;
-  /** Append a brand-new segment (no codes applied yet). */
+  /** Append a new document and make it active. */
+  addDocument: (doc: StrataDocument) => void;
+  /** Switch the active document (must already exist). */
+  setActiveDocument: (id: string) => void;
+  /** Remove a document and all its coded segments. */
+  removeDocument: (id: string) => void;
   addSegment: (
-    init: Pick<CodedSegment, "text" | "start" | "end" | "speaker">,
+    init: Pick<CodedSegment, "text" | "start" | "end" | "speaker"> & {
+      document_id?: string;
+    },
   ) => CodedSegment;
-  /** Remove a segment by id. */
   removeSegment: (id: string) => void;
-  /** Toggle a code on/off for a given segment. If axis is exclusive,
-   *  replaces any existing code on that axis. */
   toggleCode: (segment_id: string, axis_id: string, code: string) => void;
-  /** Clear any code on the given axis for this segment. */
   clearAxis: (segment_id: string, axis_id: string) => void;
   setConfidence: (segment_id: string, level: ConfidenceLevel | null) => void;
   setMemo: (segment_id: string, memo: string) => void;
   setInterweaving: (segment_id: string, text: string) => void;
-  /** Add a user-imported codebook. */
   addUserCodebook: (cb: Codebook) => void;
   removeUserCodebook: (codebook_id: string) => void;
   setAiTier: (tier: "free" | "pro" | "institute") => void;
-  /** Reset all data to the seeded sample project. */
   resetToSample: () => void;
 }
 
 const initialState: State = {
   codebook_id: dualLayerPJxBE.codebook_id,
-  document: { ...SAMPLE_DOCUMENT },
+  documents: [{ ...SAMPLE_DOCUMENT }],
+  active_document_id: SAMPLE_DOCUMENT.id,
   segments: SAMPLE_SEGMENTS,
   userCodebooks: [],
   ai_tier: "free",
@@ -75,13 +74,41 @@ export const useStrata = create<State & Actions>()(
 
       setCodebook: (codebook_id) => set({ codebook_id }),
 
-      setDocument: (doc) =>
-        set({ document: doc, segments: [] }),
+      addDocument: (doc) =>
+        set((s) => ({
+          documents: [...s.documents.filter((d) => d.id !== doc.id), doc],
+          active_document_id: doc.id,
+        })),
+
+      setActiveDocument: (id) => {
+        const doc = get().documents.find((d) => d.id === id);
+        if (doc) set({ active_document_id: id });
+      },
+
+      removeDocument: (id) =>
+        set((s) => {
+          const remaining = s.documents.filter((d) => d.id !== id);
+          if (remaining.length === 0) {
+            // Don't allow removing the last document; reset to sample instead
+            return {
+              documents: [{ ...SAMPLE_DOCUMENT }],
+              active_document_id: SAMPLE_DOCUMENT.id,
+              segments: SAMPLE_SEGMENTS,
+            };
+          }
+          return {
+            documents: remaining,
+            active_document_id:
+              s.active_document_id === id ? remaining[0].id : s.active_document_id,
+            segments: s.segments.filter((seg) => seg.document_id !== id),
+          };
+        }),
 
       addSegment: (init) => {
+        const docId = init.document_id ?? get().active_document_id;
         const seg: CodedSegment = {
           id: `seg_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
-          document_id: get().document.id,
+          document_id: docId,
           start: init.start,
           end: init.end,
           text: init.text,
@@ -91,7 +118,7 @@ export const useStrata = create<State & Actions>()(
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         };
-        set((s) => ({ segments: [...s.segments, seg].sort((a, b) => a.start - b.start) }));
+        set((s) => ({ segments: [...s.segments, seg].sort(byStart) }));
         return seg;
       },
 
@@ -116,7 +143,6 @@ export const useStrata = create<State & Actions>()(
             } else if (axis.cardinality === "multiple") {
               nextApplied = [...seg.applied, { axis_id, code }];
             } else {
-              // Exclusive: replace any existing code on this axis
               nextApplied = [
                 ...seg.applied.filter((a) => a.axis_id !== axis_id),
                 { axis_id, code },
@@ -193,7 +219,8 @@ export const useStrata = create<State & Actions>()(
       removeUserCodebook: (codebook_id) =>
         set((s) => ({
           userCodebooks: s.userCodebooks.filter((c) => c.codebook_id !== codebook_id),
-          codebook_id: s.codebook_id === codebook_id ? dualLayerPJxBE.codebook_id : s.codebook_id,
+          codebook_id:
+            s.codebook_id === codebook_id ? dualLayerPJxBE.codebook_id : s.codebook_id,
         })),
 
       setAiTier: (tier) => set({ ai_tier: tier }),
@@ -202,14 +229,31 @@ export const useStrata = create<State & Actions>()(
     }),
     {
       name: "strata-project-v1",
+      version: 2,
       storage: createJSONStorage(() => localStorage),
-      // Skip hydration-flash by only persisting once mounted on client
-      skipHydration: false,
+      migrate: (persistedState, version) => {
+        // v1 had { document: StrataDocument, segments }
+        // v2 splits into { documents: [], active_document_id, segments }
+        const s = persistedState as Partial<State> & { document?: StrataDocument };
+        if (version < 2 && s.document) {
+          return {
+            ...s,
+            documents: [s.document],
+            active_document_id: s.document.id,
+            document: undefined,
+          } as State;
+        }
+        return s as State;
+      },
     },
   ),
 );
 
-/** Re-evaluate derived codes (currently: is_hybrid_strategy, pattern_id) */
+function byStart(a: CodedSegment, b: CodedSegment) {
+  if (a.document_id !== b.document_id) return a.document_id.localeCompare(b.document_id);
+  return a.start - b.start;
+}
+
 function applyDerived(seg: CodedSegment, cb: Codebook): CodedSegment {
   const surfaceCode = seg.applied.find((a) => a.axis_id === "surface")?.code;
   const deepCode = seg.applied.find((a) => a.axis_id === "deep")?.code;
@@ -232,14 +276,28 @@ function findCodebook(id: string, userCodebooks: Codebook[] = []): Codebook {
   );
 }
 
+/* ----- Selectors ----- */
+
 export function useActiveCodebook(): Codebook {
   const id = useStrata((s) => s.codebook_id);
   const userCodebooks = useStrata((s) => s.userCodebooks);
   return findCodebook(id, userCodebooks);
 }
 
-/** All codebooks (built-in + user-imported). */
 export function useAllCodebooks(): Codebook[] {
   const userCodebooks = useStrata((s) => s.userCodebooks);
   return [...BUILTIN_CODEBOOKS, ...userCodebooks];
+}
+
+export function useActiveDocument(): StrataDocument {
+  const id = useStrata((s) => s.active_document_id);
+  const documents = useStrata((s) => s.documents);
+  return documents.find((d) => d.id === id) ?? documents[0];
+}
+
+/** Coded segments belonging to the currently active document. */
+export function useActiveSegments(): CodedSegment[] {
+  const id = useStrata((s) => s.active_document_id);
+  const segments = useStrata((s) => s.segments);
+  return segments.filter((s) => s.document_id === id);
 }

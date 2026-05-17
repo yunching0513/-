@@ -4,7 +4,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Download, FileSpreadsheet, RotateCcw } from "lucide-react";
-import { useStrata, useActiveCodebook } from "@/lib/store/strata";
+import {
+  useStrata,
+  useActiveCodebook,
+  useActiveDocument,
+  useActiveSegments,
+} from "@/lib/store/strata";
 import {
   codeFrequency,
   surfaceDeepCoOccurrence,
@@ -21,8 +26,8 @@ import { HybridSankey } from "@/components/charts/hybrid-sankey";
 import { downloadExcel, downloadQdpx } from "@/lib/export/client";
 
 export default function DashboardPage() {
-  const segments = useStrata((s) => s.segments);
-  const document = useStrata((s) => s.document);
+  const segments = useActiveSegments();
+  const document = useActiveDocument();
   const resetToSample = useStrata((s) => s.resetToSample);
   const cb = useActiveCodebook();
 

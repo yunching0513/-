@@ -3,12 +3,17 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useStrata, useActiveCodebook } from "@/lib/store/strata";
+import {
+  useStrata,
+  useActiveCodebook,
+  useActiveDocument,
+  useActiveSegments,
+} from "@/lib/store/strata";
 import { downloadExcel, downloadQdpx } from "@/lib/export/client";
 
 export default function SettingsPage() {
-  const segments = useStrata((s) => s.segments);
-  const document = useStrata((s) => s.document);
+  const segments = useActiveSegments();
+  const document = useActiveDocument();
   const cb = useActiveCodebook();
   const aiTier = useStrata((s) => s.ai_tier);
   const setAiTier = useStrata((s) => s.setAiTier);

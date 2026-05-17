@@ -3,17 +3,30 @@
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, FileText, Upload, MoreVertical, Loader2, AlertCircle } from "lucide-react";
+import {
+  ArrowRight,
+  FileText,
+  Upload,
+  Loader2,
+  AlertCircle,
+  Check,
+  Trash2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useStrata } from "@/lib/store/strata";
+import { useStrata, type StrataDocument } from "@/lib/store/strata";
 import { cn } from "@/lib/utils";
 
 export default function DocumentsPage() {
   const router = useRouter();
-  const document = useStrata((s) => s.document);
-  const setDocument = useStrata((s) => s.setDocument);
+  const documents = useStrata((s) => s.documents);
+  const activeId = useStrata((s) => s.active_document_id);
+  const addDocument = useStrata((s) => s.addDocument);
+  const setActiveDocument = useStrata((s) => s.setActiveDocument);
+  const removeDocument = useStrata((s) => s.removeDocument);
+  const segments = useStrata((s) => s.segments);
+
   const inputRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<"idle" | "uploading" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +56,7 @@ export default function DocumentsPage() {
         size_bytes: number;
         page_count?: number;
       };
-      setDocument({
+      addDocument({
         id: `doc_${Date.now()}`,
         name: data.name,
         parsed_text: data.text,
@@ -52,7 +65,6 @@ export default function DocumentsPage() {
         page_count: data.page_count,
       });
       setStatus("idle");
-      // Navigate straight to coding workspace
       router.push("/app/coding");
     } catch (err) {
       setError(err instanceof Error ? err.message : "未知錯誤");
@@ -147,47 +159,100 @@ export default function DocumentsPage() {
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">當前文件</CardTitle>
-        </CardHeader>
         <CardContent className="p-0">
-          <DocRow doc={document} />
+          <div className="flex items-center justify-between border-b border-border px-6 py-3">
+            <h2 className="text-sm font-medium">文件列表（{documents.length}）</h2>
+            <p className="text-xs text-muted-foreground">點切換為當前　·　當前文件的編碼會顯示於工作台</p>
+          </div>
+          <div className="divide-y divide-border">
+            {documents.map((d) => (
+              <DocRow
+                key={d.id}
+                doc={d}
+                isActive={d.id === activeId}
+                segmentCount={segments.filter((s) => s.document_id === d.id).length}
+                onActivate={() => setActiveDocument(d.id)}
+                onRemove={() => {
+                  if (
+                    confirm(
+                      `移除「${d.name}」？此文件的所有編碼也會一併刪除。`,
+                    )
+                  ) {
+                    removeDocument(d.id);
+                  }
+                }}
+              />
+            ))}
+          </div>
         </CardContent>
       </Card>
-
-      <p className="text-xs text-muted-foreground">
-        MVP 階段每個專案只有單一活動文件；上傳新文件會替換它（編碼會被清空）。
-        多文件支援於下一階段加入。
-      </p>
     </div>
   );
 }
 
-function DocRow({ doc }: { doc: ReturnType<typeof useStrata.getState>["document"] }) {
+function DocRow({
+  doc,
+  isActive,
+  segmentCount,
+  onActivate,
+  onRemove,
+}: {
+  doc: StrataDocument;
+  isActive: boolean;
+  segmentCount: number;
+  onActivate: () => void;
+  onRemove: () => void;
+}) {
   const sizeKB = (doc.size_bytes / 1024).toFixed(1);
   return (
-    <div className="flex items-center gap-4 px-6 py-4">
+    <div
+      className={cn(
+        "flex items-center gap-4 px-6 py-4 transition hover:bg-muted/30",
+        isActive && "bg-muted/40",
+      )}
+    >
       <div className="flex h-10 w-10 items-center justify-center border border-border bg-muted text-foreground/70">
         <FileText className="h-5 w-5" />
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="truncate font-medium">{doc.name}</span>
-          <Badge variant="secondary" className="font-mono">
-            {sizeKB} KB{doc.page_count ? ` · ${doc.page_count} 頁` : ""}
-          </Badge>
+          <button onClick={onActivate} className="truncate text-left font-medium hover:underline">
+            {doc.name}
+          </button>
+          {isActive && (
+            <Badge variant="outline" className="gap-1">
+              <Check className="h-3 w-3" /> 當前
+            </Badge>
+          )}
         </div>
-        <div className="mt-1 text-xs text-muted-foreground">
-          上傳於 {new Date(doc.uploaded_at).toLocaleString("zh-TW")}
+        <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+          <span className="font-mono">
+            {sizeKB} KB{doc.page_count ? ` · ${doc.page_count} 頁` : ""}
+          </span>
+          <span>·</span>
+          <span>{segmentCount} 個編碼</span>
+          <span>·</span>
+          <span>上傳於 {new Date(doc.uploaded_at).toLocaleString("zh-TW")}</span>
         </div>
       </div>
-      <Button asChild size="sm" variant="outline">
-        <Link href="/app/coding">
+      {!isActive && (
+        <Button size="sm" variant="outline" onClick={onActivate}>
+          設為當前
+        </Button>
+      )}
+      <Button asChild size="sm" variant={isActive ? "default" : "ghost"}>
+        <Link href="/app/coding" onClick={onActivate}>
           開始編碼 <ArrowRight className="h-4 w-4" />
         </Link>
       </Button>
-      <Button size="icon" variant="ghost">
-        <MoreVertical className="h-4 w-4" />
+      <Button
+        size="icon"
+        variant="ghost"
+        className="text-muted-foreground hover:text-destructive"
+        onClick={onRemove}
+        title="刪除文件"
+      >
+        <Trash2 className="h-4 w-4" />
       </Button>
     </div>
   );

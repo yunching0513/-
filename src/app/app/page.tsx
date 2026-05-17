@@ -4,11 +4,11 @@ import Link from "next/link";
 import { ArrowRight, FileText, BookOpenText, Highlighter, BarChart3 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useStrata } from "@/lib/store/strata";
+import { useActiveDocument, useActiveSegments } from "@/lib/store/strata";
 
 export default function AppOverviewPage() {
-  const segments = useStrata((s) => s.segments);
-  const document = useStrata((s) => s.document);
+  const segments = useActiveSegments();
+  const document = useActiveDocument();
 
   const total = segments.length;
   const hybrid = segments.filter((s) => s.derived?.is_hybrid_strategy).length;
@@ -26,7 +26,7 @@ export default function AppOverviewPage() {
       </header>
 
       <div className="grid gap-4 md:grid-cols-4">
-        <Stat label="文件數" value="1" hint={document.name} />
+        <Stat label="當前文件" value="1" hint={document.name} />
         <Stat label="已編碼片段" value={String(total)} hint={total ? "可繼續編碼" : "尚未開始"} />
         <Stat
           label="Hybrid 策略"
