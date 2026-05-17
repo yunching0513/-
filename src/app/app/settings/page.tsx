@@ -10,6 +10,8 @@ export default function SettingsPage() {
   const segments = useStrata((s) => s.segments);
   const document = useStrata((s) => s.document);
   const cb = useActiveCodebook();
+  const aiTier = useStrata((s) => s.ai_tier);
+  const setAiTier = useStrata((s) => s.setAiTier);
 
   return (
     <div className="space-y-8 p-10">
@@ -27,16 +29,23 @@ export default function SettingsPage() {
           <CardDescription>選擇預設模型；按量計費，不會強制升級。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          {[
-            { name: "Free 個人版", model: "Claude Haiku 4.5", price: "免費 50,000 字 / 月" },
-            { name: "Academic Pro", model: "Claude Sonnet 4.6", price: "按量計費" },
-            { name: "機構版", model: "Claude Opus 4.7", price: "聯繫洽談" },
-          ].map((t, i) => (
+          {(
+            [
+              { id: "free", name: "Free 個人版", model: "Claude Haiku 4.5", price: "免費 50,000 字 / 月" },
+              { id: "pro", name: "Academic Pro", model: "Claude Sonnet 4.6", price: "按量計費" },
+              { id: "institute", name: "機構版", model: "Claude Opus 4.7", price: "聯繫洽談" },
+            ] as const
+          ).map((t) => (
             <label
-              key={t.name}
+              key={t.id}
               className="flex items-center gap-3 rounded-sm border border-border p-3 hover:bg-muted/40"
             >
-              <input type="radio" name="tier" defaultChecked={i === 1} />
+              <input
+                type="radio"
+                name="tier"
+                checked={aiTier === t.id}
+                onChange={() => setAiTier(t.id)}
+              />
               <div className="flex-1">
                 <div className="text-sm font-medium">{t.name}</div>
                 <div className="text-xs text-muted-foreground">{t.model}</div>

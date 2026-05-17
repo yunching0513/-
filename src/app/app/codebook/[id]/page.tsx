@@ -1,20 +1,51 @@
-import { notFound } from "next/navigation";
+"use client";
+
+import { notFound, useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, BookOpen } from "lucide-react";
+import { ArrowLeft, BookOpen, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { findBuiltinCodebook } from "@/lib/codebook/builtin";
+import { useStrata } from "@/lib/store/strata";
 
-export default async function CodebookDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
-  const codebook = findBuiltinCodebook(id);
-  if (!codebook) notFound();
+export default function CodebookDetailPage() {
+  const params = useParams<{ id: string }>();
+  const id = params.id;
+  const userCodebooks = useStrata((s) => s.userCodebooks);
+  const setCodebook = useStrata((s) => s.setCodebook);
+  const addUserCodebook = useStrata((s) => s.addUserCodebook);
+  const activeId = useStrata((s) => s.codebook_id);
+
+  const codebook = findBuiltinCodebook(id) ?? userCodebooks.find((c) => c.codebook_id === id);
+  if (!codebook) {
+    notFound();
+  }
+
+  function copyAsUser() {
+    const copy = {
+      ...codebook!,
+      codebook_id: `${codebook!.codebook_id}-copy-${Date.now()}`,
+      name: `${codebook!.name}（複本）`,
+    };
+    addUserCodebook(copy);
+    setCodebook(copy.codebook_id);
+  }
+
+  function downloadJson() {
+    const blob = new Blob([JSON.stringify(codebook, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${codebook!.codebook_id}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  }
 
   return (
     <div className="space-y-8 p-8">
@@ -34,10 +65,20 @@ export default async function CodebookDetailPage({
             <p className="mt-1 text-sm text-muted-foreground">{codebook.domain}</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline">複製為自訂版本</Button>
-            <Button asChild>
-              <Link href="/app/coding">套用此編碼簿</Link>
+            <Button variant="ghost" onClick={downloadJson}>
+              <Download className="h-4 w-4" />
+              下載 JSON
             </Button>
+            <Button variant="outline" onClick={copyAsUser}>
+              複製為自訂版本
+            </Button>
+            {activeId === codebook.codebook_id ? (
+              <Button asChild>
+                <Link href="/app/coding">前往編碼工作台</Link>
+              </Button>
+            ) : (
+              <Button onClick={() => setCodebook(codebook.codebook_id)}>套用此編碼簿</Button>
+            )}
           </div>
         </div>
       </div>

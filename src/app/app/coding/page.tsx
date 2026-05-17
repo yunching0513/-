@@ -11,6 +11,8 @@ import {
   ChevronRight,
   X,
   Trash2,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -619,23 +621,7 @@ function CodingPanel({
           </section>
         )}
 
-        <section className="border border-border bg-muted/40 p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs font-medium">
-              <Sparkles className="h-3.5 w-3.5" /> AI 結構化建議
-            </div>
-            <Badge variant="outline" className="font-mono">
-              Sonnet 4.6
-            </Badge>
-          </div>
-          <p className="mt-3 text-xs text-muted-foreground">
-            按下方按鈕請 Claude 依此編碼簿的 Chain-of-Thought 流程逐步推理並建議編碼。
-            （需於設定頁填入 ANTHROPIC_API_KEY）
-          </p>
-          <Button size="sm" variant="outline" className="mt-3 w-full" disabled>
-            取得 AI 建議 — 即將推出
-          </Button>
-        </section>
+        <AiSuggestSection segment={seg} codebook={codebook} />
       </div>
     </aside>
   );
@@ -733,5 +719,198 @@ function CodeChips({
         </button>
       ))}
     </div>
+  );
+}
+
+/* ----- AI suggest section ----- */
+
+interface AiResult {
+  reasoning: string[];
+  suggested: { axis_id: string; code: string; rationale: string }[];
+  pattern_id?: string;
+  interweaving_analysis?: string;
+  is_hybrid_strategy: boolean;
+  confidence: "high" | "medium" | "low";
+}
+
+function AiSuggestSection({
+  segment,
+  codebook,
+}: {
+  segment: CodedSegment;
+  codebook: Codebook;
+}) {
+  const toggleCode = useStrata((s) => s.toggleCode);
+  const setConfidence = useStrata((s) => s.setConfidence);
+  const setInterweaving = useStrata((s) => s.setInterweaving);
+  const ai_tier = useStrata((s) => s.ai_tier);
+
+  const [status, setStatus] = useState<"idle" | "loading" | "ok" | "error">("idle");
+  const [result, setResult] = useState<AiResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function run() {
+    setStatus("loading");
+    setError(null);
+    try {
+      const res = await fetch("/api/ai/suggest", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          text: segment.text,
+          speaker: segment.speaker,
+          codebook_id: codebook.codebook_id,
+          tier: ai_tier,
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? `HTTP ${res.status}`);
+      }
+      const data = (await res.json()) as AiResult;
+      setResult(data);
+      setStatus("ok");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "未知錯誤");
+      setStatus("error");
+    }
+  }
+
+  function applyAll() {
+    if (!result) return;
+    for (const s of result.suggested) {
+      const current = segment.applied.find((a) => a.axis_id === s.axis_id);
+      if (current?.code !== s.code) {
+        toggleCode(segment.id, s.axis_id, s.code);
+      }
+    }
+    setConfidence(segment.id, result.confidence);
+    if (result.interweaving_analysis) {
+      setInterweaving(segment.id, result.interweaving_analysis);
+    }
+  }
+
+  const modelLabel =
+    ai_tier === "free" ? "Haiku 4.5" : ai_tier === "pro" ? "Sonnet 4.6" : "Opus 4.7";
+
+  return (
+    <section className="border border-border bg-muted/40 p-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-xs font-medium">
+          <Sparkles className="h-3.5 w-3.5" /> AI 結構化建議
+        </div>
+        <Badge variant="outline" className="font-mono">
+          {modelLabel}
+        </Badge>
+      </div>
+
+      {status === "idle" && (
+        <>
+          <p className="mt-3 text-xs text-muted-foreground">
+            請 Claude 依此編碼簿的 Chain-of-Thought 流程逐步推理並建議編碼。
+          </p>
+          <Button size="sm" variant="outline" className="mt-3 w-full" onClick={run}>
+            取得 AI 建議
+          </Button>
+        </>
+      )}
+
+      {status === "loading" && (
+        <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          推理中…通常需要 5–15 秒
+        </div>
+      )}
+
+      {status === "error" && (
+        <div className="mt-3 space-y-2">
+          <div className="flex items-start gap-2 text-xs text-destructive">
+            <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <div>
+              <div className="font-medium">無法取得 AI 建議</div>
+              <div className="mt-0.5 text-destructive/80">{error}</div>
+              {error?.includes("ANTHROPIC_API_KEY") && (
+                <div className="mt-1.5 text-destructive/60">
+                  請於專案根目錄 .env.local 加入 ANTHROPIC_API_KEY=...
+                </div>
+              )}
+            </div>
+          </div>
+          <Button size="sm" variant="outline" className="w-full" onClick={run}>
+            重試
+          </Button>
+        </div>
+      )}
+
+      {status === "ok" && result && (
+        <div className="mt-3 space-y-3">
+          <ol className="space-y-1 text-xs text-muted-foreground">
+            {result.reasoning.map((r, i) => (
+              <li key={i}>
+                {i + 1}. {r}
+              </li>
+            ))}
+          </ol>
+          <div className="space-y-1.5 border-t border-border pt-2">
+            <div className="text-[11px] font-medium uppercase tracking-widish text-muted-foreground">
+              建議
+            </div>
+            {result.suggested.map((s) => {
+              const axisDef = codebook.axes.find((a) => a.axis_id === s.axis_id);
+              const codeDef = axisDef?.codes.find((c) => c.code === s.code);
+              return (
+                <div
+                  key={`${s.axis_id}-${s.code}`}
+                  className="flex items-start gap-2 text-xs"
+                >
+                  <Badge
+                    variant={s.axis_id === "surface" ? "surface" : "deep"}
+                    className="shrink-0 font-mono"
+                  >
+                    {s.code}
+                  </Badge>
+                  <div>
+                    <div className="font-medium">{codeDef?.name ?? s.code}</div>
+                    <div className="text-muted-foreground">{s.rationale}</div>
+                  </div>
+                </div>
+              );
+            })}
+            {result.is_hybrid_strategy && result.pattern_id && (
+              <div className="pt-1 text-xs">
+                <span className="text-muted-foreground">Hybrid 模式：</span>
+                <span className="font-medium text-hybrid_axis">
+                  {codebook.patterns?.find((p) => p.pattern_id === result.pattern_id)?.name ??
+                    result.pattern_id}
+                </span>
+              </div>
+            )}
+            {result.interweaving_analysis && (
+              <p className="border-l-2 border-foreground/15 pl-2 text-xs italic text-muted-foreground">
+                {result.interweaving_analysis}
+              </p>
+            )}
+            <div className="pt-1 text-xs">
+              <span className="text-muted-foreground">信心度：</span>
+              <span className="font-medium">
+                {result.confidence === "high"
+                  ? "高"
+                  : result.confidence === "medium"
+                    ? "中"
+                    : "低"}
+              </span>
+            </div>
+          </div>
+          <div className="flex gap-2 border-t border-border pt-2">
+            <Button size="sm" variant="ghost" className="flex-1" onClick={() => setStatus("idle")}>
+              關閉
+            </Button>
+            <Button size="sm" className="flex-1" onClick={applyAll}>
+              全部套用
+            </Button>
+          </div>
+        </div>
+      )}
+    </section>
   );
 }

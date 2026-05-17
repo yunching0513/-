@@ -27,6 +27,10 @@ interface State {
   codebook_id: string;
   document: StrataDocument;
   segments: CodedSegment[];
+  /** User-imported codebooks (Phase 3). */
+  userCodebooks: Codebook[];
+  /** AI tier preference. */
+  ai_tier: "free" | "pro" | "institute";
 }
 
 interface Actions {
@@ -48,6 +52,10 @@ interface Actions {
   setConfidence: (segment_id: string, level: ConfidenceLevel | null) => void;
   setMemo: (segment_id: string, memo: string) => void;
   setInterweaving: (segment_id: string, text: string) => void;
+  /** Add a user-imported codebook. */
+  addUserCodebook: (cb: Codebook) => void;
+  removeUserCodebook: (codebook_id: string) => void;
+  setAiTier: (tier: "free" | "pro" | "institute") => void;
   /** Reset all data to the seeded sample project. */
   resetToSample: () => void;
 }
@@ -56,6 +64,8 @@ const initialState: State = {
   codebook_id: dualLayerPJxBE.codebook_id,
   document: { ...SAMPLE_DOCUMENT },
   segments: SAMPLE_SEGMENTS,
+  userCodebooks: [],
+  ai_tier: "free",
 };
 
 export const useStrata = create<State & Actions>()(
@@ -89,7 +99,7 @@ export const useStrata = create<State & Actions>()(
         set((s) => ({ segments: s.segments.filter((x) => x.id !== id) })),
 
       toggleCode: (segment_id, axis_id, code) => {
-        const cb = findCodebook(get().codebook_id);
+        const cb = findCodebook(get().codebook_id, get().userCodebooks);
         const axis = cb.axes.find((a) => a.axis_id === axis_id);
         if (!axis) return;
         set((s) => ({
@@ -121,7 +131,7 @@ export const useStrata = create<State & Actions>()(
       },
 
       clearAxis: (segment_id, axis_id) => {
-        const cb = findCodebook(get().codebook_id);
+        const cb = findCodebook(get().codebook_id, get().userCodebooks);
         set((s) => ({
           segments: s.segments.map((seg) => {
             if (seg.id !== segment_id) return seg;
@@ -172,6 +182,22 @@ export const useStrata = create<State & Actions>()(
           ),
         })),
 
+      addUserCodebook: (cb) =>
+        set((s) => ({
+          userCodebooks: [
+            ...s.userCodebooks.filter((c) => c.codebook_id !== cb.codebook_id),
+            cb,
+          ],
+        })),
+
+      removeUserCodebook: (codebook_id) =>
+        set((s) => ({
+          userCodebooks: s.userCodebooks.filter((c) => c.codebook_id !== codebook_id),
+          codebook_id: s.codebook_id === codebook_id ? dualLayerPJxBE.codebook_id : s.codebook_id,
+        })),
+
+      setAiTier: (tier) => set({ ai_tier: tier }),
+
       resetToSample: () => set({ ...initialState }),
     }),
     {
@@ -198,11 +224,22 @@ function applyDerived(seg: CodedSegment, cb: Codebook): CodedSegment {
   };
 }
 
-function findCodebook(id: string): Codebook {
-  return BUILTIN_CODEBOOKS.find((c) => c.codebook_id === id) ?? dualLayerPJxBE;
+function findCodebook(id: string, userCodebooks: Codebook[] = []): Codebook {
+  return (
+    BUILTIN_CODEBOOKS.find((c) => c.codebook_id === id) ??
+    userCodebooks.find((c) => c.codebook_id === id) ??
+    dualLayerPJxBE
+  );
 }
 
 export function useActiveCodebook(): Codebook {
   const id = useStrata((s) => s.codebook_id);
-  return findCodebook(id);
+  const userCodebooks = useStrata((s) => s.userCodebooks);
+  return findCodebook(id, userCodebooks);
+}
+
+/** All codebooks (built-in + user-imported). */
+export function useAllCodebooks(): Codebook[] {
+  const userCodebooks = useStrata((s) => s.userCodebooks);
+  return [...BUILTIN_CODEBOOKS, ...userCodebooks];
 }
