@@ -18,6 +18,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/input";
 import { BatchPrecodeDialog } from "@/components/coding/batch-precode-dialog";
+import { ShortcutsHelp } from "@/components/coding/shortcuts-help";
+import {
+  useCodingShortcuts,
+  buildKeyHints,
+} from "@/lib/hooks/use-coding-shortcuts";
 import {
   useStrata,
   useActiveCodebook,
@@ -42,6 +47,12 @@ export default function CodingWorkspacePage() {
   );
   const [popover, setPopover] = useState<{ x: number; y: number } | null>(null);
   const [batchOpen, setBatchOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+
+  // Store actions for shortcut handlers
+  const toggleCode = useStrata((s) => s.toggleCode);
+  const setConfidence = useStrata((s) => s.setConfidence);
+  const removeSegmentAction = useStrata((s) => s.removeSegment);
 
   // If the focused existing segment gets removed, clear focus
   useEffect(() => {
@@ -63,6 +74,52 @@ export default function CodingWorkspacePage() {
     setActive({ kind: "draft", ...d });
   }
 
+  // Wire keyboard shortcuts (only when an existing segment is focused)
+  useCodingShortcuts(
+    codebook.axes,
+    {
+      onCodeKey: (axis_id, code) => {
+        if (active?.kind === "existing") {
+          toggleCode(active.segment_id, axis_id, code);
+        }
+      },
+      onConfidence: (level) => {
+        if (active?.kind === "existing") {
+          setConfidence(active.segment_id, level);
+        }
+      },
+      onNext: () => {
+        const idx = selectedSegmentId
+          ? segments.findIndex((s) => s.id === selectedSegmentId)
+          : -1;
+        const nx = segments[idx + 1] ?? segments[0];
+        if (nx) selectExisting(nx.id);
+      },
+      onPrev: () => {
+        const idx = selectedSegmentId
+          ? segments.findIndex((s) => s.id === selectedSegmentId)
+          : -1;
+        const pv = idx > 0 ? segments[idx - 1] : segments[segments.length - 1];
+        if (pv) selectExisting(pv.id);
+      },
+      onEscape: () => {
+        if (helpOpen) setHelpOpen(false);
+        else if (batchOpen) setBatchOpen(false);
+        else setActive(null);
+      },
+      onHelp: () => setHelpOpen((o) => !o),
+      onDelete:
+        active?.kind === "existing"
+          ? () => {
+              if (confirm("刪除此片段？此操作無法復原。")) {
+                removeSegmentAction(active.segment_id);
+              }
+            }
+          : undefined,
+    },
+    !batchOpen && !helpOpen,
+  );
+
   return (
     <div className="grid h-[calc(100vh-3.5rem)] grid-cols-[1fr_400px] overflow-hidden">
       <div className="grid grid-rows-[auto_1fr_auto] overflow-hidden border-r border-border">
@@ -77,6 +134,17 @@ export default function CodingWorkspacePage() {
             <Button size="sm" variant="outline" onClick={() => setBatchOpen(true)}>
               <Sparkles className="h-4 w-4" />
               AI 預編碼整份
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setHelpOpen(true)}
+              title="鍵盤快捷鍵（?）"
+            >
+              <kbd className="rounded-sm border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px]">
+                ?
+              </kbd>
+              <span className="text-xs text-muted-foreground">快捷鍵</span>
             </Button>
             <Button size="sm" variant="ghost" disabled>
               <Save className="h-4 w-4" />
@@ -130,6 +198,8 @@ export default function CodingWorkspacePage() {
         existingSegments={segments}
         codebook={codebook}
       />
+
+      <ShortcutsHelp open={helpOpen} onClose={() => setHelpOpen(false)} codebook={codebook} />
     </div>
   );
 }
@@ -440,6 +510,7 @@ function CodingPanel({
   const setConfidence = useStrata((s) => s.setConfidence);
   const setMemo = useStrata((s) => s.setMemo);
   const setInterweaving = useStrata((s) => s.setInterweaving);
+  const keyHints = useMemo(() => buildKeyHints(codebook.axes), [codebook.axes]);
 
   if (!active) {
     return (
@@ -529,6 +600,7 @@ function CodingPanel({
           <CodeChips
             axis={surface}
             active={surfaceCode}
+            keyHints={keyHints}
             onPick={(code) => toggleCode(seg.id, "surface", code)}
           />
         </section>
@@ -548,6 +620,7 @@ function CodingPanel({
           <CodeChips
             axis={deep}
             active={deepCode}
+            keyHints={keyHints}
             onPick={(code) => toggleCode(seg.id, "deep", code)}
           />
         </section>
@@ -709,31 +782,49 @@ function CodeChips({
   axis,
   active,
   onPick,
+  keyHints,
 }: {
   axis: Codebook["axes"][number];
   active?: string;
   onPick: (code: string) => void;
+  keyHints?: Map<string, string>;
 }) {
   return (
     <div className="flex flex-wrap gap-1.5">
-      {axis.codes.map((code) => (
-        <button
-          key={code.code}
-          onClick={() => onPick(code.code)}
-          className={cn(
-            "rounded-sm border px-2 py-1 text-xs transition",
-            active === code.code
-              ? axis.color_token === "surface_axis"
-                ? "border-surface_axis bg-surface_axis/10 text-surface_axis"
-                : "border-deep_axis bg-deep_axis/10 text-deep_axis"
-              : "border-border hover:bg-muted",
-          )}
-          title={code.definition}
-        >
-          <span className="font-mono">{code.code}</span>
-          <span className="ml-1">{code.name}</span>
-        </button>
-      ))}
+      {axis.codes.map((code) => {
+        const hint = keyHints?.get(`${axis.axis_id}:${code.code}`);
+        const isActive = active === code.code;
+        return (
+          <button
+            key={code.code}
+            onClick={() => onPick(code.code)}
+            className={cn(
+              "group inline-flex items-center gap-1.5 rounded-sm border px-2 py-1 text-xs transition",
+              isActive
+                ? axis.color_token === "surface_axis"
+                  ? "border-surface_axis bg-surface_axis/10 text-surface_axis"
+                  : "border-deep_axis bg-deep_axis/10 text-deep_axis"
+                : "border-border hover:bg-muted",
+            )}
+            title={`${code.definition}${hint ? `\n快捷鍵：${hint.toUpperCase()}` : ""}`}
+          >
+            {hint && (
+              <kbd
+                className={cn(
+                  "inline-flex h-4 min-w-[14px] items-center justify-center rounded-sm border px-1 font-mono text-[9px]",
+                  isActive
+                    ? "border-current/40 bg-background/60"
+                    : "border-border bg-muted text-muted-foreground",
+                )}
+              >
+                {hint.toUpperCase()}
+              </kbd>
+            )}
+            <span className="font-mono">{code.code}</span>
+            <span>{code.name}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }
