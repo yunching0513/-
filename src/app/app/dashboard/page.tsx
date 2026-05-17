@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,12 +25,21 @@ import { SpeakerMatrix } from "@/components/charts/speaker-matrix";
 import { ConfidenceBars } from "@/components/charts/confidence-bars";
 import { HybridSankey } from "@/components/charts/hybrid-sankey";
 import { downloadExcel, downloadQdpx } from "@/lib/export/client";
+import { cn } from "@/lib/utils";
+
+type Scope = "current" | "all";
 
 export default function DashboardPage() {
-  const segments = useActiveSegments();
+  const [scope, setScope] = useState<Scope>("current");
+
+  const allSegments = useStrata((s) => s.segments);
+  const activeSegments = useActiveSegments();
+  const documents = useStrata((s) => s.documents);
   const document = useActiveDocument();
   const resetToSample = useStrata((s) => s.resetToSample);
   const cb = useActiveCodebook();
+
+  const segments = scope === "current" ? activeSegments : allSegments;
 
   const freq = codeFrequency(segments, cb);
   const cooc = surfaceDeepCoOccurrence(segments, cb);
@@ -46,13 +56,32 @@ export default function DashboardPage() {
           <p className="eyebrow mb-2">視覺化</p>
           <h1 className="text-3xl font-light tracking-tightish">儀表板</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            依當前 {segments.length} 個編碼片段即時計算。修改編碼後此頁會立即更新。
+            {scope === "current" ? (
+              <>
+                當前文件「{document.name}」· {segments.length} 筆編碼
+              </>
+            ) : (
+              <>
+                全部 {documents.length} 份文件 · {segments.length} 筆編碼
+              </>
+            )}
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="ghost" size="sm" onClick={() => {
-            if (confirm("將重設為內建範例資料，目前的編碼會被清除。確定嗎？")) resetToSample();
-          }}>
+          <ScopeToggle
+            scope={scope}
+            onChange={setScope}
+            currentLabel={document.name}
+            totalDocs={documents.length}
+          />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              if (confirm("將重設為內建範例資料，目前的編碼會被清除。確定嗎？"))
+                resetToSample();
+            }}
+          >
             <RotateCcw className="h-4 w-4" />
             重設為範例
           </Button>
@@ -71,7 +100,7 @@ export default function DashboardPage() {
             onClick={() => downloadQdpx(segments, cb, document)}
           >
             <Download className="h-4 w-4" />
-            匯出 ATLAS.ti（.qdpx）
+            匯出 ATLAS.ti
           </Button>
         </div>
       </header>
@@ -79,11 +108,13 @@ export default function DashboardPage() {
       {!hasData ? (
         <Card>
           <CardContent className="py-16 text-center text-sm text-muted-foreground">
-            尚無編碼資料。請至{" "}
+            {scope === "current"
+              ? "當前文件尚無編碼資料。"
+              : "尚無任何編碼資料。"}{" "}
             <a href="/app/coding" className="underline underline-offset-2">
-              編碼工作台
+              前往編碼工作台
             </a>{" "}
-            開始標註，或點上方「重設為範例」載入示範資料。
+            開始標註。
           </CardContent>
         </Card>
       ) : (
@@ -94,11 +125,7 @@ export default function DashboardPage() {
               <CardDescription>各表層／深層編碼的出現次數</CardDescription>
             </CardHeader>
             <CardContent>
-              {freq.length > 0 ? (
-                <CodeFrequencyChart data={freq} />
-              ) : (
-                <EmptyChart />
-              )}
+              {freq.length > 0 ? <CodeFrequencyChart data={freq} /> : <EmptyChart />}
             </CardContent>
           </Card>
 
@@ -134,8 +161,15 @@ export default function DashboardPage() {
 
           <Card className="lg:col-span-2">
             <CardHeader>
-              <CardTitle className="text-base">發言者 × 編碼矩陣</CardTitle>
-              <CardDescription>誰關心什麼議題（聽證會的核心洞察）</CardDescription>
+              <CardTitle className="text-base">
+                發言者 × 編碼矩陣
+                {scope === "all" && (
+                  <Badge variant="outline" className="ml-2">
+                    跨文件
+                  </Badge>
+                )}
+              </CardTitle>
+              <CardDescription>誰關心什麼議題</CardDescription>
             </CardHeader>
             <CardContent>
               <SpeakerMatrix data={speakers} codebook={cb} />
@@ -155,7 +189,9 @@ export default function DashboardPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">摘要統計</CardTitle>
-              <CardDescription>本專案的編碼整體指標</CardDescription>
+              <CardDescription>
+                {scope === "current" ? "本文件" : "全部文件合併"}的編碼指標
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-2.5 text-sm">
               <Row label="總片段數" value={String(segments.length)} />
@@ -173,6 +209,7 @@ export default function DashboardPage() {
                 accent
               />
               <Row label="不重複發言者" value={`${speakers.length}`} />
+              {scope === "all" && <Row label="納入文件數" value={String(documents.length)} />}
               <div className="pt-2">
                 <Badge variant="surface">表層 = 程序正義</Badge>{" "}
                 <Badge variant="deep">深層 = 行為經濟學</Badge>{" "}
@@ -182,6 +219,48 @@ export default function DashboardPage() {
           </Card>
         </div>
       )}
+    </div>
+  );
+}
+
+function ScopeToggle({
+  scope,
+  onChange,
+  currentLabel,
+  totalDocs,
+}: {
+  scope: Scope;
+  onChange: (s: Scope) => void;
+  currentLabel: string;
+  totalDocs: number;
+}) {
+  return (
+    <div className="flex items-center rounded-sm border border-border bg-surface">
+      <button
+        onClick={() => onChange("current")}
+        className={cn(
+          "px-3 py-1.5 text-xs transition",
+          scope === "current"
+            ? "bg-foreground text-background"
+            : "text-muted-foreground hover:text-foreground",
+        )}
+        title={currentLabel}
+      >
+        當前文件
+      </button>
+      <button
+        onClick={() => onChange("all")}
+        className={cn(
+          "px-3 py-1.5 text-xs transition",
+          scope === "all"
+            ? "bg-foreground text-background"
+            : "text-muted-foreground hover:text-foreground",
+        )}
+        disabled={totalDocs <= 1}
+        title={totalDocs <= 1 ? "目前只有一份文件" : `合併 ${totalDocs} 份文件`}
+      >
+        全部文件
+      </button>
     </div>
   );
 }

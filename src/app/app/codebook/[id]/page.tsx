@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { findBuiltinCodebook } from "@/lib/codebook/builtin";
+import { codebookToCsv } from "@/lib/codebook/csv";
 import { useStrata } from "@/lib/store/strata";
 
 export default function CodebookDetailPage() {
@@ -33,14 +34,15 @@ export default function CodebookDetailPage() {
     setCodebook(copy.codebook_id);
   }
 
-  function downloadJson() {
-    const blob = new Blob([JSON.stringify(codebook, null, 2)], {
-      type: "application/json",
-    });
+  function download(format: "json" | "csv") {
+    const blob =
+      format === "json"
+        ? new Blob([JSON.stringify(codebook, null, 2)], { type: "application/json" })
+        : new Blob([codebookToCsv(codebook!)], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${codebook!.codebook_id}.json`;
+    a.download = `${codebook!.codebook_id}.${format}`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -65,7 +67,11 @@ export default function CodebookDetailPage() {
             <p className="mt-1 text-sm text-muted-foreground">{codebook.domain}</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="ghost" onClick={downloadJson}>
+            <Button variant="ghost" onClick={() => download("csv")}>
+              <Download className="h-4 w-4" />
+              下載 CSV
+            </Button>
+            <Button variant="ghost" onClick={() => download("json")}>
               <Download className="h-4 w-4" />
               下載 JSON
             </Button>
