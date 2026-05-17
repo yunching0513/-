@@ -1,36 +1,52 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Sparkles, Save, MessageSquare, Network, Plus, ChevronLeft, ChevronRight, X } from "lucide-react";
+import {
+  Sparkles,
+  Save,
+  MessageSquare,
+  Network,
+  Plus,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  Trash2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/input";
-import { dualLayerPJxBE } from "@/lib/codebook/builtin";
-import { SAMPLE_DOCUMENT, SAMPLE_SEGMENTS } from "@/lib/seed/sample-segments";
-import type { CodedSegment } from "@/lib/codebook/types";
+import { useStrata, useActiveCodebook } from "@/lib/store/strata";
+import type { Codebook, CodedSegment } from "@/lib/codebook/types";
 import { cn } from "@/lib/utils";
 
-/**
- * Active editing target. Either a stored CodedSegment (clicked an existing
- * highlight) or a transient new selection (dragged with the cursor).
- */
 type Active =
-  | { kind: "existing"; segment: CodedSegment }
+  | { kind: "existing"; segment_id: string }
   | { kind: "draft"; text: string; start: number; end: number; speaker?: string }
   | null;
 
 export default function CodingWorkspacePage() {
-  const codebook = dualLayerPJxBE;
-  const fullText = SAMPLE_DOCUMENT.parsed_text;
+  const codebook = useActiveCodebook();
+  const document = useStrata((s) => s.document);
+  const segments = useStrata((s) => s.segments);
 
-  const [segments, setSegments] = useState<CodedSegment[]>(SAMPLE_SEGMENTS);
-  const [active, setActive] = useState<Active>({ kind: "existing", segment: SAMPLE_SEGMENTS[0] });
+  const [active, setActive] = useState<Active>(
+    segments[0] ? { kind: "existing", segment_id: segments[0].id } : null,
+  );
   const [popover, setPopover] = useState<{ x: number; y: number } | null>(null);
 
-  const selectedSegmentId = active?.kind === "existing" ? active.segment.id : null;
+  // If the focused existing segment gets removed, clear focus
+  useEffect(() => {
+    if (active?.kind === "existing" && !segments.find((s) => s.id === active.segment_id)) {
+      setActive(null);
+    }
+  }, [segments, active]);
 
-  function selectExisting(s: CodedSegment) {
-    setActive({ kind: "existing", segment: s });
+  const selectedSegmentId = active?.kind === "existing" ? active.segment_id : null;
+  const activeSegment =
+    active?.kind === "existing" ? segments.find((s) => s.id === active.segment_id) ?? null : null;
+
+  function selectExisting(id: string) {
+    setActive({ kind: "existing", segment_id: id });
     setPopover(null);
   }
 
@@ -40,11 +56,10 @@ export default function CodingWorkspacePage() {
 
   return (
     <div className="grid h-[calc(100vh-3.5rem)] grid-cols-[1fr_400px] overflow-hidden">
-      {/* Left: continuous text reader with cursor-selection support */}
       <div className="grid grid-rows-[auto_1fr_auto] overflow-hidden border-r border-border">
         <header className="flex items-center justify-between border-b border-border bg-surface px-6 py-3">
           <div>
-            <div className="text-sm font-medium">{SAMPLE_DOCUMENT.name}</div>
+            <div className="text-sm font-medium">{document.name}</div>
             <div className="text-xs text-muted-foreground">
               編碼簿：{codebook.name}　·　{segments.length} 個已編碼片段
             </div>
@@ -56,13 +71,13 @@ export default function CodingWorkspacePage() {
             </Button>
             <Button size="sm">
               <Save className="h-4 w-4" />
-              儲存
+              已自動儲存
             </Button>
           </div>
         </header>
 
         <TextReader
-          text={fullText}
+          text={document.parsed_text}
           segments={segments}
           activeSegmentId={selectedSegmentId}
           onSelectExisting={selectExisting}
@@ -73,7 +88,7 @@ export default function CodingWorkspacePage() {
         <ReaderFooter
           segments={segments}
           activeSegmentId={selectedSegmentId}
-          onPick={selectExisting}
+          onPick={(s) => selectExisting(s.id)}
         />
 
         {popover && active?.kind === "draft" && (
@@ -81,33 +96,33 @@ export default function CodingWorkspacePage() {
             x={popover.x}
             y={popover.y}
             onDismiss={() => setPopover(null)}
-            onApply={() => setPopover(null)}
+            draft={active}
+            codebook={codebook}
+            onAfterApply={(id) => {
+              selectExisting(id);
+            }}
           />
         )}
       </div>
 
-      {/* Right: coding panel */}
       <CodingPanel
         active={active}
+        activeSegment={activeSegment}
         codebook={codebook}
         onClear={() => setActive(null)}
+        onCreatedFromDraft={(id) => selectExisting(id)}
       />
     </div>
   );
 }
 
-/* ------------------------------------------------------------------ *
- *  TextReader — renders the document as continuous text with         *
- *  inline highlights for existing coded segments.                    *
- *  - Drag with cursor to create a new draft selection                *
- *  - Click an existing highlight to focus it                         *
- * ------------------------------------------------------------------ */
+/* ----- Text reader (continuous selectable) ----- */
 
 interface TextReaderProps {
   text: string;
   segments: CodedSegment[];
   activeSegmentId: string | null;
-  onSelectExisting: (s: CodedSegment) => void;
+  onSelectExisting: (id: string) => void;
   onSelectDraft: (d: { text: string; start: number; end: number; speaker?: string }) => void;
   onPopover: (p: { x: number; y: number } | null) => void;
 }
@@ -121,21 +136,16 @@ function TextReader({
   onPopover,
 }: TextReaderProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-
   const pieces = useMemo(() => buildPieces(text, segments), [text, segments]);
 
-  // Read the user's cursor selection on mouseup. Compute the global character
-  // offsets by reading data-start on the span the selection landed inside.
-  function handleMouseUp(e: React.MouseEvent) {
+  function handleMouseUp() {
     const sel = window.getSelection();
     if (!sel || sel.isCollapsed || !containerRef.current) {
       onPopover(null);
       return;
     }
     const range = sel.getRangeAt(0);
-    if (!containerRef.current.contains(range.commonAncestorContainer)) {
-      return;
-    }
+    if (!containerRef.current.contains(range.commonAncestorContainer)) return;
     const start = offsetFromNode(containerRef.current, range.startContainer, range.startOffset);
     const end = offsetFromNode(containerRef.current, range.endContainer, range.endOffset);
     if (start == null || end == null || start === end) return;
@@ -143,44 +153,28 @@ function TextReader({
     const selectedText = text.slice(s, t).trim();
     if (selectedText.length === 0) return;
     const actualStart = text.indexOf(selectedText, s);
+    const finalStart = actualStart === -1 ? s : actualStart;
     onSelectDraft({
       text: selectedText,
-      start: actualStart === -1 ? s : actualStart,
-      end: (actualStart === -1 ? s : actualStart) + selectedText.length,
-      speaker: detectSpeaker(text, s),
+      start: finalStart,
+      end: finalStart + selectedText.length,
+      speaker: detectSpeaker(text, finalStart),
     });
-    // Position popover near the selection's bounding rect
     const rect = range.getBoundingClientRect();
     onPopover({ x: rect.left + rect.width / 2, y: rect.top });
   }
-
-  // Clear selection state when clicking elsewhere
-  useEffect(() => {
-    function onDocMouseDown(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        // Don't clear when clicking the popover itself
-        const tgt = e.target as HTMLElement;
-        if (tgt.closest("[data-strata-popover]")) return;
-        // Keep selection but hide popover when clicking outside
-        // onPopover(null);
-      }
-    }
-    document.addEventListener("mousedown", onDocMouseDown);
-    return () => document.removeEventListener("mousedown", onDocMouseDown);
-  }, [onPopover]);
 
   return (
     <div className="overflow-y-auto px-8 py-10 scrollbar-thin">
       <div className="mx-auto max-w-3xl">
         <p className="eyebrow mb-1">逐字稿</p>
         <p className="mb-6 text-xs text-muted-foreground">
-          以游標拖曳選取任意片段以建立編碼；點擊既有底色片段以重新編輯。
+          以游標拖曳選取任意片段建立編碼；點擊既有底色片段以重新編輯。
         </p>
         <div
           ref={containerRef}
           onMouseUp={handleMouseUp}
           className="select-text whitespace-pre-wrap text-[15px] leading-[1.95] tracking-tightish text-foreground caret-foreground selection:bg-foreground/15"
-          // Disable browser's auto-scroll-into-view on selection in some browsers
           style={{ wordBreak: "break-word" }}
         >
           {pieces.map((piece, idx) => {
@@ -195,6 +189,7 @@ function TextReader({
             const surface = seg.applied.find((a) => a.axis_id === "surface")?.code;
             const deep = seg.applied.find((a) => a.axis_id === "deep")?.code;
             const isHybrid = !!(surface && deep);
+            const hasAny = seg.applied.length > 0;
             const isActive = seg.id === activeSegmentId;
             return (
               <span
@@ -204,7 +199,7 @@ function TextReader({
                 data-seg-id={seg.id}
                 onClick={(e) => {
                   e.stopPropagation();
-                  onSelectExisting(seg);
+                  onSelectExisting(seg.id);
                 }}
                 className={cn(
                   "cursor-pointer transition-colors",
@@ -214,10 +209,12 @@ function TextReader({
                       ? "bg-surface_axis/12 border-b border-surface_axis/60 hover:bg-surface_axis/20"
                       : deep
                         ? "bg-deep_axis/10 border-b border-dashed border-deep_axis/60 hover:bg-deep_axis/18"
-                        : "bg-muted",
-                  isActive && "ring-1 ring-foreground/30 ring-offset-1 ring-offset-background",
+                        : hasAny
+                          ? "bg-muted border-b border-muted-foreground/30"
+                          : "bg-muted/60 border-b border-dashed border-muted-foreground/40",
+                  isActive && "ring-1 ring-foreground/40 ring-offset-1 ring-offset-background",
                 )}
-                title={`${seg.speaker ?? ""}　${seg.applied.map((a) => a.code).join(" + ")}`}
+                title={`${seg.speaker ?? ""}　${seg.applied.map((a) => a.code).join(" + ") || "未編碼"}`}
               >
                 {piece.text}
               </span>
@@ -229,7 +226,6 @@ function TextReader({
   );
 }
 
-/** Pieces of the document text, split at coded-segment boundaries. */
 interface Piece {
   start: number;
   end: number;
@@ -237,7 +233,6 @@ interface Piece {
   segment?: CodedSegment;
 }
 function buildPieces(text: string, segments: CodedSegment[]): Piece[] {
-  // Resolve overlaps by sorting and skipping any segment that overlaps the previous.
   const sorted = [...segments].sort((a, b) => a.start - b.start);
   const ranges: { start: number; end: number; segment: CodedSegment }[] = [];
   let lastEnd = -1;
@@ -266,7 +261,6 @@ function buildPieces(text: string, segments: CodedSegment[]): Piece[] {
   return pieces;
 }
 
-/** Walk up from a DOM node to find the wrapping <span data-start="…">. */
 function offsetFromNode(
   root: HTMLElement,
   node: Node,
@@ -284,29 +278,30 @@ function offsetFromNode(
   return null;
 }
 
-/** Best-effort: locate the most recent 「【某某】」 speaker tag before offset. */
 function detectSpeaker(text: string, offset: number): string | undefined {
   const before = text.slice(0, offset);
   const m = before.match(/【([^】]{1,20})】[^【]*$/);
   return m?.[1];
 }
 
-/* ------------------------------------------------------------------ *
- *  Floating popover — appears near the user's selection,             *
- *  giving a quick "code this" action.                                *
- * ------------------------------------------------------------------ */
+/* ----- Floating popover near selection ----- */
 
 function SelectionPopover({
   x,
   y,
   onDismiss,
-  onApply,
+  draft,
+  codebook,
+  onAfterApply,
 }: {
   x: number;
   y: number;
   onDismiss: () => void;
-  onApply: () => void;
+  draft: { text: string; start: number; end: number; speaker?: string };
+  codebook: Codebook;
+  onAfterApply: (id: string) => void;
 }) {
+  const addSegment = useStrata((s) => s.addSegment);
   return (
     <div
       data-strata-popover
@@ -314,21 +309,36 @@ function SelectionPopover({
       style={{ left: x, top: y }}
     >
       <div className="flex items-center gap-0.5">
-        <Button size="sm" variant="ghost" className="h-7 gap-1.5 px-2" onClick={onApply}>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 gap-1.5 px-2"
+          onClick={() => {
+            const seg = addSegment({
+              text: draft.text,
+              start: draft.start,
+              end: draft.end,
+              speaker: draft.speaker,
+            });
+            onAfterApply(seg.id);
+            onDismiss();
+          }}
+        >
           <Plus className="h-3.5 w-3.5" />
-          <span className="text-xs">套用編碼</span>
+          <span className="text-xs">建立片段並編碼</span>
         </Button>
         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={onDismiss}>
           <X className="h-3.5 w-3.5" />
         </Button>
       </div>
+      <span className="sr-only">
+        codebook: {codebook.codebook_id}
+      </span>
     </div>
   );
 }
 
-/* ------------------------------------------------------------------ *
- *  Reader footer — compact navigation through coded segments         *
- * ------------------------------------------------------------------ */
+/* ----- Footer ----- */
 
 function ReaderFooter({
   segments,
@@ -372,15 +382,15 @@ function ReaderFooter({
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
         <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-3 bg-surface_axis/25 border-b border-surface_axis/60" />
+          <span className="h-2.5 w-3 border-b border-surface_axis/60 bg-surface_axis/25" />
           表層
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-3 bg-deep_axis/20 border-b border-dashed border-deep_axis/60" />
+          <span className="h-2.5 w-3 border-b border-dashed border-deep_axis/60 bg-deep_axis/20" />
           深層
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-3 bg-hybrid_axis/25 border-b border-hybrid_axis/60" />
+          <span className="h-2.5 w-3 border-b border-hybrid_axis/60 bg-hybrid_axis/25" />
           Hybrid
         </span>
       </div>
@@ -388,33 +398,30 @@ function ReaderFooter({
   );
 }
 
-/* ------------------------------------------------------------------ *
- *  Coding panel — drives the active draft or existing segment        *
- * ------------------------------------------------------------------ */
+/* ----- Coding panel (right) ----- */
 
 function CodingPanel({
   active,
+  activeSegment,
   codebook,
   onClear,
+  onCreatedFromDraft,
 }: {
   active: Active;
-  codebook: typeof dualLayerPJxBE;
+  activeSegment: CodedSegment | null;
+  codebook: Codebook;
   onClear: () => void;
+  onCreatedFromDraft: (id: string) => void;
 }) {
   const surface = codebook.axes.find((a) => a.axis_id === "surface")!;
   const deep = codebook.axes.find((a) => a.axis_id === "deep")!;
-
-  const isDraft = active?.kind === "draft";
-  const segment = active?.kind === "existing" ? active.segment : null;
-  const draftText = active?.kind === "draft" ? active.text : null;
-  const draftSpeaker = active?.kind === "draft" ? active.speaker : null;
-
-  const surfaceCode = segment?.applied.find((a) => a.axis_id === "surface")?.code;
-  const deepCode = segment?.applied.find((a) => a.axis_id === "deep")?.code;
-  const matchedPattern = codebook.patterns?.find(
-    (p) => p.surface_code === surfaceCode && p.deep_code === deepCode,
-  );
-  const isHybrid = !!segment?.derived?.is_hybrid_strategy;
+  const addSegment = useStrata((s) => s.addSegment);
+  const removeSegment = useStrata((s) => s.removeSegment);
+  const toggleCode = useStrata((s) => s.toggleCode);
+  const clearAxis = useStrata((s) => s.clearAxis);
+  const setConfidence = useStrata((s) => s.setConfidence);
+  const setMemo = useStrata((s) => s.setMemo);
+  const setInterweaving = useStrata((s) => s.setInterweaving);
 
   if (!active) {
     return (
@@ -427,42 +434,104 @@ function CodingPanel({
     );
   }
 
+  if (active.kind === "draft") {
+    return (
+      <aside className="flex flex-col overflow-hidden bg-surface">
+        <PanelHeader title="新片段（草稿）" subtitle={active.speaker ?? "（未指定發言者）"} onClose={onClear} />
+        <div className="flex-1 space-y-6 overflow-y-auto p-5 scrollbar-thin">
+          <SelectedText text={active.text} subtle={`位置：${active.start}–${active.end}`} />
+          <p className="text-xs text-muted-foreground">
+            草稿尚未建立。按下方「建立片段」後，編碼、信心度、Memo 才會啟用。
+          </p>
+        </div>
+        <div className="flex gap-2 border-t border-border p-3">
+          <Button variant="outline" className="flex-1" size="sm" onClick={onClear}>
+            取消
+          </Button>
+          <Button
+            className="flex-1"
+            size="sm"
+            onClick={() => {
+              const seg = addSegment(active);
+              onCreatedFromDraft(seg.id);
+            }}
+          >
+            建立片段
+          </Button>
+        </div>
+      </aside>
+    );
+  }
+
+  if (!activeSegment) return null;
+  const seg = activeSegment;
+  const surfaceCode = seg.applied.find((a) => a.axis_id === "surface")?.code;
+  const deepCode = seg.applied.find((a) => a.axis_id === "deep")?.code;
+  const matchedPattern = codebook.patterns?.find(
+    (p) => p.surface_code === surfaceCode && p.deep_code === deepCode,
+  );
+  const isHybrid = !!seg.derived?.is_hybrid_strategy;
+
   return (
     <aside className="flex flex-col overflow-hidden bg-surface">
-      <div className="flex items-center justify-between border-b border-border px-5 py-3">
-        <div>
-          <p className="eyebrow">{isDraft ? "新片段（草稿）" : "編輯片段"}</p>
-          <div className="mt-0.5 text-sm font-medium">
-            {isDraft ? draftSpeaker ?? "（未指定發言者）" : segment!.speaker}
-          </div>
-        </div>
-        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={onClear} title="關閉">
-          <X className="h-3.5 w-3.5" />
-        </Button>
-      </div>
+      <PanelHeader
+        title="編輯片段"
+        subtitle={seg.speaker ?? "（未指定發言者）"}
+        onClose={onClear}
+        actions={
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+            onClick={() => {
+              if (confirm("刪除此片段？此操作無法復原。")) removeSegment(seg.id);
+            }}
+            title="刪除片段"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        }
+      />
 
       <div className="flex-1 space-y-6 overflow-y-auto p-5 scrollbar-thin">
-        {/* Selected text — now a passive view, the real selection happens in the middle */}
+        <SelectedText text={seg.text} />
+
         <section>
-          <SectionLabel>所選文本</SectionLabel>
-          <div className="border-l-2 border-foreground/20 bg-muted/40 p-3 text-[13px] leading-relaxed text-foreground/90">
-            {isDraft ? draftText : segment!.text}
-          </div>
-          {isDraft && (
-            <p className="mt-1.5 text-[11px] text-muted-foreground">
-              位置：{(active as { start: number; end: number }).start}–{(active as { end: number }).end}
-            </p>
-          )}
+          <SectionLabel color="surface">
+            表層 — 程序正義
+            {surfaceCode && (
+              <button
+                onClick={() => clearAxis(seg.id, "surface")}
+                className="ml-auto text-[10px] text-muted-foreground hover:text-foreground"
+              >
+                清除
+              </button>
+            )}
+          </SectionLabel>
+          <CodeChips
+            axis={surface}
+            active={surfaceCode}
+            onPick={(code) => toggleCode(seg.id, "surface", code)}
+          />
         </section>
 
         <section>
-          <SectionLabel color="surface">表層 — 程序正義</SectionLabel>
-          <CodeChips axis={surface} active={surfaceCode} />
-        </section>
-
-        <section>
-          <SectionLabel color="deep">深層 — 行為經濟學</SectionLabel>
-          <CodeChips axis={deep} active={deepCode} />
+          <SectionLabel color="deep">
+            深層 — 行為經濟學
+            {deepCode && (
+              <button
+                onClick={() => clearAxis(seg.id, "deep")}
+                className="ml-auto text-[10px] text-muted-foreground hover:text-foreground"
+              >
+                清除
+              </button>
+            )}
+          </SectionLabel>
+          <CodeChips
+            axis={deep}
+            active={deepCode}
+            onPick={(code) => toggleCode(seg.id, "deep", code)}
+          />
         </section>
 
         <section className="border-t border-border pt-5">
@@ -473,15 +542,20 @@ function CodingPanel({
           <div className="mt-2 text-sm">
             {isHybrid ? (
               <span>
-                <Badge variant="hybrid" className="mr-2">✓ 觸發</Badge>
-                {matchedPattern && (
+                <Badge variant="hybrid" className="mr-2">
+                  ✓ 觸發
+                </Badge>
+                {matchedPattern ? (
                   <span className="text-muted-foreground">
-                    模式：<span className="font-medium text-foreground">{matchedPattern.name}</span>
+                    模式：
+                    <span className="font-medium text-foreground">{matchedPattern.name}</span>
                   </span>
+                ) : (
+                  <span className="text-muted-foreground">未匹配內建模式</span>
                 )}
               </span>
             ) : (
-              <span className="text-muted-foreground">尚未觸發</span>
+              <span className="text-muted-foreground">尚未觸發（表層與深層需皆有編碼）</span>
             )}
           </div>
         </section>
@@ -492,9 +566,10 @@ function CodingPanel({
             {(["high", "medium", "low"] as const).map((c) => (
               <button
                 key={c}
+                onClick={() => setConfidence(seg.id, seg.confidence === c ? null : c)}
                 className={cn(
-                  "rounded-sm border px-2 py-1.5 text-xs",
-                  segment?.confidence === c
+                  "rounded-sm border px-2 py-1.5 text-xs transition",
+                  seg.confidence === c
                     ? "border-foreground bg-foreground text-background"
                     : "border-border hover:bg-muted",
                 )}
@@ -510,24 +585,36 @@ function CodingPanel({
             <MessageSquare className="h-3.5 w-3.5" /> 備註（次要觸發、上下文等）
           </SectionLabel>
           <Textarea
-            defaultValue={segment?.memo ?? ""}
+            key={seg.id + "-memo"}
+            defaultValue={seg.memo ?? ""}
+            onBlur={(e) => setMemo(seg.id, e.target.value)}
             placeholder="例：本段次要觸發 PJ4，因發言者亦質疑估價方法..."
             rows={3}
-            key={(segment?.id ?? draftText) as string}
           />
         </section>
 
-        {(isHybrid || isDraft) && (
+        {isHybrid && (
           <section>
             <SectionLabel>交織剖析（50–150 字）</SectionLabel>
             <Textarea
-              defaultValue={segment?.interweaving_analysis ?? ""}
+              key={seg.id + "-int"}
+              defaultValue={seg.interweaving_analysis ?? ""}
+              onChange={(e) => {
+                // Live char counter
+                const next = e.currentTarget.parentElement?.querySelector(
+                  "[data-int-counter]",
+                );
+                if (next) next.textContent = `${e.target.value.length} / 150`;
+              }}
+              onBlur={(e) => setInterweaving(seg.id, e.target.value)}
               placeholder="說明（1）表層程序爭議（2）深層心理偏誤（3）二者結合機制..."
               rows={4}
-              key={(segment?.id ?? draftText) + "-int"}
             />
-            <div className="mt-1 text-right text-[10px] text-muted-foreground">
-              {(segment?.interweaving_analysis ?? "").length} / 150
+            <div
+              data-int-counter
+              className="mt-1 text-right text-[10px] text-muted-foreground"
+            >
+              {(seg.interweaving_analysis ?? "").length} / 150
             </div>
           </section>
         )}
@@ -537,30 +624,59 @@ function CodingPanel({
             <div className="flex items-center gap-2 text-xs font-medium">
               <Sparkles className="h-3.5 w-3.5" /> AI 結構化建議
             </div>
-            <Badge variant="outline" className="font-mono">Sonnet 4.6</Badge>
+            <Badge variant="outline" className="font-mono">
+              Sonnet 4.6
+            </Badge>
           </div>
-          <ol className="mt-3 space-y-1 text-xs text-muted-foreground">
-            <li>1. 發言者：私產權人</li>
-            <li>2. 表層：援引「永和大陳」外部錨點 → PJ2</li>
-            <li>3. 深層：歷史/外部數字驅動 → BE1</li>
-            <li>4. Hybrid：✓ 表層 × 深層皆觸發</li>
-            <li>5. 比對模式：錨點防衛模式</li>
-          </ol>
-          <Button size="sm" variant="outline" className="mt-3 w-full">
-            套用 AI 建議
+          <p className="mt-3 text-xs text-muted-foreground">
+            按下方按鈕請 Claude 依此編碼簿的 Chain-of-Thought 流程逐步推理並建議編碼。
+            （需於設定頁填入 ANTHROPIC_API_KEY）
+          </p>
+          <Button size="sm" variant="outline" className="mt-3 w-full" disabled>
+            取得 AI 建議 — 即將推出
           </Button>
         </section>
       </div>
+    </aside>
+  );
+}
 
-      <div className="flex gap-2 border-t border-border p-3">
-        <Button variant="outline" className="flex-1" size="sm" onClick={onClear}>
-          取消
-        </Button>
-        <Button className="flex-1" size="sm">
-          {isDraft ? "建立片段" : "儲存變更"}
+function PanelHeader({
+  title,
+  subtitle,
+  onClose,
+  actions,
+}: {
+  title: string;
+  subtitle: string;
+  onClose: () => void;
+  actions?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between border-b border-border px-5 py-3">
+      <div className="min-w-0">
+        <p className="eyebrow">{title}</p>
+        <div className="mt-0.5 truncate text-sm font-medium">{subtitle}</div>
+      </div>
+      <div className="flex items-center gap-1">
+        {actions}
+        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={onClose} title="關閉">
+          <X className="h-3.5 w-3.5" />
         </Button>
       </div>
-    </aside>
+    </div>
+  );
+}
+
+function SelectedText({ text, subtle }: { text: string; subtle?: string }) {
+  return (
+    <section>
+      <SectionLabel>所選文本</SectionLabel>
+      <div className="border-l-2 border-foreground/20 bg-muted/40 p-3 text-[13px] leading-relaxed text-foreground/90">
+        {text}
+      </div>
+      {subtle && <p className="mt-1.5 text-[11px] text-muted-foreground">{subtle}</p>}
+    </section>
   );
 }
 
@@ -590,15 +706,18 @@ function SectionLabel({
 function CodeChips({
   axis,
   active,
+  onPick,
 }: {
-  axis: (typeof dualLayerPJxBE.axes)[number];
+  axis: Codebook["axes"][number];
   active?: string;
+  onPick: (code: string) => void;
 }) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {axis.codes.map((code) => (
         <button
           key={code.code}
+          onClick={() => onPick(code.code)}
           className={cn(
             "rounded-sm border px-2 py-1 text-xs transition",
             active === code.code
@@ -613,9 +732,6 @@ function CodeChips({
           <span className="ml-1">{code.name}</span>
         </button>
       ))}
-      <button className="rounded-sm border border-dashed border-border px-2 py-1 text-xs text-muted-foreground hover:bg-muted">
-        無
-      </button>
     </div>
   );
 }

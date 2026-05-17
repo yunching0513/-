@@ -1,15 +1,25 @@
+"use client";
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useStrata, useActiveCodebook } from "@/lib/store/strata";
+import { downloadExcel, downloadQdpx } from "@/lib/export/client";
 
 export default function SettingsPage() {
+  const segments = useStrata((s) => s.segments);
+  const document = useStrata((s) => s.document);
+  const cb = useActiveCodebook();
+
   return (
-    <div className="space-y-6 p-8">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">設定</h1>
-        <p className="mt-1 text-sm text-muted-foreground">帳戶、AI 模型、訂閱與用量。</p>
-      </div>
+    <div className="space-y-8 p-10">
+      <header>
+        <p className="eyebrow mb-2">設定</p>
+        <h1 className="text-3xl font-light tracking-tightish">帳戶與專案</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          AI 模型、用量、資料匯出。
+        </p>
+      </header>
 
       <Card>
         <CardHeader>
@@ -22,7 +32,10 @@ export default function SettingsPage() {
             { name: "Academic Pro", model: "Claude Sonnet 4.6", price: "按量計費" },
             { name: "機構版", model: "Claude Opus 4.7", price: "聯繫洽談" },
           ].map((t, i) => (
-            <label key={t.name} className="flex items-center gap-3 rounded-lg border border-border p-3 hover:bg-muted/40">
+            <label
+              key={t.name}
+              className="flex items-center gap-3 rounded-sm border border-border p-3 hover:bg-muted/40"
+            >
               <input type="radio" name="tier" defaultChecked={i === 1} />
               <div className="flex-1">
                 <div className="text-sm font-medium">{t.name}</div>
@@ -40,26 +53,47 @@ export default function SettingsPage() {
           <CardDescription>累積消耗與餘額</CardDescription>
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
-          <div className="flex justify-between"><span className="text-muted-foreground">輸入字元</span><span className="font-mono">12,438</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">輸出字元</span><span className="font-mono">4,201</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">本月費用</span><span className="font-mono">NT$ 0</span></div>
+          <Row label="輸入字元" value="—" />
+          <Row label="輸出字元" value="—" />
+          <Row label="本月費用" value="NT$ 0" />
+          <p className="pt-1 text-xs text-muted-foreground">
+            尚未啟用 AI；在 .env.local 填入 ANTHROPIC_API_KEY 後可使用。
+          </p>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
           <CardTitle className="text-base">資料匯出</CardTitle>
-          <CardDescription>隨時匯出整個專案至 ATLAS.ti、Excel</CardDescription>
+          <CardDescription>
+            匯出當前專案的 {segments.length} 個編碼片段
+          </CardDescription>
         </CardHeader>
         <CardContent className="flex gap-2">
-          <Button variant="outline" asChild>
-            <a href="/api/export?format=xlsx">下載 Excel (.xlsx)</a>
+          <Button
+            variant="outline"
+            disabled={segments.length === 0}
+            onClick={() => downloadExcel(segments, cb, document.name)}
+          >
+            下載 Excel (.xlsx)
           </Button>
-          <Button asChild>
-            <a href="/api/export?format=qdpx">下載 ATLAS.ti (.qdpx)</a>
+          <Button
+            disabled={segments.length === 0}
+            onClick={() => downloadQdpx(segments, cb, document)}
+          >
+            下載 ATLAS.ti (.qdpx)
           </Button>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-mono">{value}</span>
     </div>
   );
 }
