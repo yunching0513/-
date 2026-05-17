@@ -21,7 +21,10 @@ export async function parseFile(
 ): Promise<ParsedDocument> {
   const ext = filename.toLowerCase().split(".").pop();
   if (ext === "pdf") {
-    const pdfParse = (await import("pdf-parse")).default;
+    // Import the internal module to bypass pdf-parse's index.js side-effect
+    // (which tries to read a test PDF and breaks on serverless platforms).
+    // @ts-expect-error — pdf-parse has no types for the internal path
+    const pdfParse = (await import("pdf-parse/lib/pdf-parse.js")).default;
     const data = await pdfParse(buffer);
     return finalize(data.text, data.numpages);
   }

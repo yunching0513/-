@@ -2,6 +2,8 @@
 
 > 為公聽會、聽證會等質性研究文本提供雙層編碼、AI 輔助標註、視覺化與 ATLAS.ti 匯出的編碼研究平台。
 
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fyunching0513%2F-&env=ANTHROPIC_API_KEY&envDescription=Required%20for%20AI%20suggestions.%20Get%20one%20at%20console.anthropic.com&project-name=strata&repository-name=strata)
+
 Strata 不是傳統的標籤工具。它把質性研究真實的工作流程作為一等公民：
 **多軸平行編碼、Chain-of-Thought 結構化 AI 建議、Hybrid 衍生規則、信度檢驗、QDA 軟體互通**。
 
@@ -88,50 +90,14 @@ npm run dev
 
 ---
 
-## ☁️ 部署：SaaS（推薦）
+## ☁️ 部署
 
-最低成本上線：Vercel + Supabase + Anthropic API，初期月費 < NT$ 500。
+詳細步驟見 [DEPLOY.md](./DEPLOY.md)。最簡：點上方「Deploy with Vercel」按鈕，
+填入 `ANTHROPIC_API_KEY` 即可上線。
 
-### 1. Vercel（前端 + Serverless）
-
-```bash
-# 安裝 vercel CLI
-npm i -g vercel
-
-# 登入後一行部署
-vercel deploy --prod
-```
-
-在 Vercel 後台設定環境變數（同 `.env.example`）。
-
-### 2. Supabase（資料庫 + Auth + 儲存）
-
-1. 至 https://supabase.com 建立新專案
-2. 把 `NEXT_PUBLIC_SUPABASE_URL`、`NEXT_PUBLIC_SUPABASE_ANON_KEY`、`SUPABASE_SERVICE_ROLE_KEY` 填入 Vercel
-3. 將來會於 `supabase/migrations/` 加入 schema 與 RLS 規則
-
-### 3. Anthropic API
-
-至 https://console.anthropic.com 申請 API key，填入 `ANTHROPIC_API_KEY`。
-
----
-
-## 🏠 自架伺服器
-
-若你想完全本地端運行（例如：機構內網、敏感資料），使用 Docker Compose：
-
-```bash
-# (Phase 2 文件)
-docker compose up -d
-```
-
-服務組件：
-- `strata-app`：Next.js 主程式（port 3000）
-- `postgres`：自架 Postgres（取代 Supabase Cloud）
-- `minio`：物件儲存（取代 Supabase Storage）
-- `caddy`：HTTPS 反向代理
-
-完整自架指南將於 v0.2.0 加入 `docs/self-hosting.md`。
+- **Vercel**：一鍵 GitHub 整合；MVP 階段建議方案
+- **自架**：`npm run build && npm run start`；可搭配 nginx / Caddy 做 HTTPS
+- **Docker Compose**：將來會加入（含 Supabase 自架版 + MinIO 物件儲存）
 
 ---
 

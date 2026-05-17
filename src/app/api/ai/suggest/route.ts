@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { findBuiltinCodebook } from "@/lib/codebook/builtin";
 import { suggestCoding, type Tier } from "@/lib/ai/coding-assistant";
 
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
 /**
  * POST /api/ai/suggest
  * Body: { text, speaker?, codebook_id, tier? }

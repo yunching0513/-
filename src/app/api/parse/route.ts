@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { parseFile } from "@/lib/parse/document";
 
+// Route segment config (Next.js 13+ App Router)
+export const runtime = "nodejs";
+export const maxDuration = 60; // seconds; allows PDF parsing of larger docs on Vercel Pro
+
 /**
  * POST /api/parse
  * Body: multipart/form-data with a single "file" field.
@@ -27,6 +31,3 @@ export async function POST(req: Request) {
     );
   }
 }
-
-// 25 MB upload limit, matches next.config.mjs
-export const config = { api: { bodyParser: false } };
