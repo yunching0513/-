@@ -7,6 +7,7 @@ import {
   BarChart3,
   Settings,
   HelpCircle,
+  Globe2,
 } from "lucide-react";
 import { Wordmark } from "@/components/brand/logo";
 import { DocumentSwitcher } from "@/components/app/document-switcher";
@@ -16,6 +17,7 @@ import { cn } from "@/lib/utils";
 const NAV = [
   { href: "/app", label: "總覽", icon: BarChart3, exact: true },
   { href: "/app/documents", label: "文件", icon: FileText },
+  { href: "/app/sources", label: "資料源", icon: Globe2 },
   { href: "/app/codebook", label: "編碼簿", icon: BookOpenText },
   { href: "/app/coding", label: "編碼工作台", icon: Highlighter },
   { href: "/app/dashboard", label: "視覺化", icon: BarChart3 },

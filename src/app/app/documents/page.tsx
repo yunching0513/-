@@ -11,6 +11,7 @@ import {
   AlertCircle,
   Check,
   Trash2,
+  Globe2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -79,17 +80,29 @@ export default function DocumentsPage() {
           <p className="eyebrow mb-2">文件</p>
           <h1 className="text-3xl font-light tracking-tightish">文件管理</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            上傳公聽會、聽證會逐字稿；Strata 會自動解析並識別段落。
+            上傳公聽會、聽證會逐字稿，或從{" "}
+            <Link href="/app/sources" className="underline underline-offset-2 hover:text-foreground">
+              公開資料源
+            </Link>{" "}
+            匯入提案文本。
           </p>
         </div>
-        <Button onClick={() => inputRef.current?.click()} disabled={status === "uploading"}>
-          {status === "uploading" ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Upload className="h-4 w-4" />
-          )}
-          {status === "uploading" ? "解析中..." : "上傳文件"}
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild variant="outline">
+            <Link href="/app/sources">
+              <Globe2 className="h-4 w-4" />
+              從資料源匯入
+            </Link>
+          </Button>
+          <Button onClick={() => inputRef.current?.click()} disabled={status === "uploading"}>
+            {status === "uploading" ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Upload className="h-4 w-4" />
+            )}
+            {status === "uploading" ? "解析中..." : "上傳檔案"}
+          </Button>
+        </div>
         <input
           ref={inputRef}
           type="file"
