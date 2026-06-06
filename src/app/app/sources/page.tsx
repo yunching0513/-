@@ -1,30 +1,37 @@
 "use client";
 
 import { useState } from "react";
-import { Building2, Landmark } from "lucide-react";
+import { Building2, Landmark, FileSearch } from "lucide-react";
 import { JoinPanel } from "./join-panel";
 import { LyPanel } from "./ly-panel";
+import { GazettePanel } from "./gazette-panel";
 import { cn } from "@/lib/utils";
 
-type SourceTab = "join" | "ly";
+type SourceTab = "join" | "ly" | "gazette";
 
 const SOURCES: { id: SourceTab; label: string; sublabel: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  {
+    id: "gazette",
+    label: "委員會逐字稿",
+    sublabel: "立法院公報議程 · 含完整對話",
+    icon: FileSearch,
+  },
+  {
+    id: "ly",
+    label: "立法院質詢",
+    sublabel: "ly.govapi.tw · 11,000+ 筆",
+    icon: Landmark,
+  },
   {
     id: "join",
     label: "公共政策參與平台",
     sublabel: "join.gov.tw · 提點子",
     icon: Building2,
   },
-  {
-    id: "ly",
-    label: "立法院質詢",
-    sublabel: "ly.govapi.tw · g0v",
-    icon: Landmark,
-  },
 ];
 
 export default function SourcesPage() {
-  const [tab, setTab] = useState<SourceTab>("join");
+  const [tab, setTab] = useState<SourceTab>("gazette");
 
   return (
     <div className="space-y-6 p-10">
@@ -58,8 +65,9 @@ export default function SourcesPage() {
         ))}
       </div>
 
-      {tab === "join" && <JoinPanel />}
+      {tab === "gazette" && <GazettePanel />}
       {tab === "ly" && <LyPanel />}
+      {tab === "join" && <JoinPanel />}
     </div>
   );
 }

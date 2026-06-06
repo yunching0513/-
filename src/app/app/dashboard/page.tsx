@@ -24,6 +24,8 @@ import { PatternDonut } from "@/components/charts/pattern-donut";
 import { SpeakerMatrix } from "@/components/charts/speaker-matrix";
 import { ConfidenceBars } from "@/components/charts/confidence-bars";
 import { HybridSankey } from "@/components/charts/hybrid-sankey";
+import { TimelineChart } from "@/components/charts/timeline-chart";
+import { buildTimeline, type BucketMode } from "@/lib/analytics/timeline";
 import { downloadExcel, downloadQdpx } from "@/lib/export/client";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +33,7 @@ type Scope = "current" | "all";
 
 export default function DashboardPage() {
   const [scope, setScope] = useState<Scope>("current");
+  const [timelineMode, setTimelineMode] = useState<BucketMode | "auto">("auto");
 
   const allSegments = useStrata((s) => s.segments);
   const activeSegments = useActiveSegments();
@@ -46,6 +49,11 @@ export default function DashboardPage() {
   const patterns = patternDistribution(segments, cb);
   const speakers = speakerByCode(segments);
   const confidence = confidenceDistribution(segments);
+  const timeline = buildTimeline({
+    segments,
+    documents,
+    mode: timelineMode === "auto" ? undefined : timelineMode,
+  });
 
   const hasData = segments.length > 0;
 
@@ -119,6 +127,59 @@ export default function DashboardPage() {
         </Card>
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <div className="flex items-end justify-between gap-4">
+                <div>
+                  <CardTitle className="text-base">時間軸</CardTitle>
+                  <CardDescription>
+                    依文件來源日期分箱，疊堆顯示僅表層 / 僅深層 / Hybrid / 未編碼比例
+                    {scope === "all" && documents.length > 1 && (
+                      <span className="ml-2 text-foreground/60">
+                        · 跨 {documents.length} 份文件
+                      </span>
+                    )}
+                  </CardDescription>
+                </div>
+                <div className="flex gap-1.5">
+                  {(["auto", "month", "quarter", "year"] as const).map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => setTimelineMode(m)}
+                      className={`rounded-sm border px-2 py-1 text-[11px] transition ${
+                        timelineMode === m
+                          ? "border-foreground bg-foreground text-background"
+                          : "border-border hover:bg-muted"
+                      }`}
+                    >
+                      {m === "auto"
+                        ? "自動"
+                        : m === "month"
+                          ? "月"
+                          : m === "quarter"
+                            ? "季"
+                            : "年"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <TimelineChart buckets={timeline.buckets} />
+              {timeline.buckets.length > 0 && (
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  分箱：{
+                    timeline.mode === "month"
+                      ? "月"
+                      : timeline.mode === "quarter"
+                        ? "季"
+                        : "年"
+                  }　·　共 {timeline.buckets.length} 個時間點
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base">編碼頻次</CardTitle>

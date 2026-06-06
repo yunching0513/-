@@ -12,71 +12,63 @@ import {
   Square,
   ArrowRight,
   Calendar,
-  Users,
+  ExternalLink,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { useStrata } from "@/lib/store/strata";
-import { buildLyDocText, type Interpellation } from "@/lib/sources/ly-client";
+import { buildAgendaName, type GazetteAgenda } from "@/lib/sources/gazette-client";
 import { cn } from "@/lib/utils";
 
 interface SearchResult {
-  interpellations: Interpellation[];
+  agendas: GazetteAgenda[];
   total: number;
   page: number;
   perPage: number;
   totalPages: number;
 }
 
-// Available terms (屆) — current is 11, prior is 10
 const TERMS = [11, 10];
 
-export function LyPanel() {
+export function GazettePanel() {
   const router = useRouter();
   const addDocument = useStrata((s) => s.addDocument);
 
   const [term, setTerm] = useState<number | "">(11);
   const [session, setSession] = useState<number | "">("");
-  const [member, setMember] = useState("");
   const [q, setQ] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
-  const [debouncedMember, setDebouncedMember] = useState("");
   const [page, setPage] = useState(1);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<SearchResult | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [importing, setImporting] = useState<{ done: number; total: number } | null>(null);
+  const [importErrors, setImportErrors] = useState<string[]>([]);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQ(q), 400);
     return () => clearTimeout(t);
   }, [q]);
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedMember(member), 400);
-    return () => clearTimeout(t);
-  }, [member]);
 
   useEffect(() => {
     setPage(1);
-  }, [term, session, debouncedMember, debouncedQ]);
+  }, [term, session, debouncedQ]);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    const params = new URLSearchParams({
-      page: String(page),
-      per_page: "20",
-    });
+    const params = new URLSearchParams({ page: String(page), per_page: "20" });
     if (term !== "") params.set("term", String(term));
     if (session !== "") params.set("session", String(session));
-    if (debouncedMember) params.set("member", debouncedMember);
     if (debouncedQ) params.set("q", debouncedQ);
 
-    fetch(`/api/sources/ly?${params.toString()}`)
+    fetch(`/api/sources/gazette?${params.toString()}`)
       .then(async (res) => {
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
@@ -97,41 +89,81 @@ export function LyPanel() {
     return () => {
       cancelled = true;
     };
-  }, [term, session, debouncedMember, debouncedQ, page]);
+  }, [term, session, debouncedQ, page]);
 
-  function toggle(i: Interpellation) {
+  function toggle(a: GazetteAgenda) {
     const next = new Set(selected);
-    if (next.has(i.id)) next.delete(i.id);
-    else next.add(i.id);
+    if (next.has(a.id)) next.delete(a.id);
+    else next.add(a.id);
     setSelected(next);
   }
 
-  function importOne(i: Interpellation, navigate = true) {
-    const text = buildLyDocText(i);
-    const memberTag = i.members.join("、") || "立委";
-    addDocument({
-      id: `doc_ly_${i.id}_${Date.now().toString(36)}`,
-      name: `立院｜${memberTag}：${i.subject.slice(0, 30)}（${i.publish_date}）`,
-      parsed_text: text,
-      uploaded_at: new Date().toISOString(),
-      size_bytes: new Blob([text]).size,
-      source_kind: "ly",
-      source_date: i.publish_date || undefined,
-    });
-    if (navigate) router.push("/app/coding");
+  async function fetchAndAddOne(a: GazetteAgenda): Promise<boolean> {
+    try {
+      const res = await fetch(`/api/sources/gazette/text?id=${encodeURIComponent(a.id)}`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? `HTTP ${res.status}`);
+      }
+      const { text } = (await res.json()) as { text: string };
+      const dates = a.dates.join("、") || "（未知日期）";
+      const header = [
+        `第 ${a.term} 屆第 ${a.session} 會期第 ${a.meeting} 次會議`,
+        `會議日期：${dates}`,
+        `案由：${a.subject}`,
+        `來源：立法院公報議程 ${a.id}（${a.source_url}）`,
+        "",
+        "──────────",
+        "",
+      ].join("\n");
+      const fullText = header + text.trim();
+      addDocument({
+        id: `doc_gazette_${a.id}_${Date.now().toString(36)}`,
+        name: buildAgendaName(a),
+        parsed_text: fullText,
+        uploaded_at: new Date().toISOString(),
+        size_bytes: new Blob([fullText]).size,
+        source_kind: "gazette",
+        source_date: a.dates[0],
+      });
+      return true;
+    } catch (err) {
+      setImportErrors((es) => [
+        ...es,
+        `${a.id}: ${err instanceof Error ? err.message : "未知"}`,
+      ]);
+      return false;
+    }
   }
 
-  function importSelected() {
+  async function importOne(a: GazetteAgenda) {
+    setImporting({ done: 0, total: 1 });
+    setImportErrors([]);
+    const ok = await fetchAndAddOne(a);
+    setImporting(null);
+    if (ok) router.push("/app/coding");
+  }
+
+  async function importSelected() {
     if (!data) return;
-    const toImport = data.interpellations.filter((i) => selected.has(i.id));
-    for (const i of toImport) importOne(i, false);
+    const toImport = data.agendas.filter((a) => selected.has(a.id));
+    if (toImport.length === 0) return;
+    setImporting({ done: 0, total: toImport.length });
+    setImportErrors([]);
+    let okCount = 0;
+    for (let i = 0; i < toImport.length; i++) {
+      const ok = await fetchAndAddOne(toImport[i]);
+      if (ok) okCount++;
+      setImporting({ done: i + 1, total: toImport.length });
+    }
+    setImporting(null);
     setSelected(new Set());
-    router.push("/app/coding");
+    if (okCount > 0) router.push("/app/coding");
   }
 
   return (
     <div className="space-y-4">
-      {selected.size > 0 && (
+      {selected.size > 0 && !importing && (
         <div className="flex items-center justify-between border border-foreground/30 bg-muted/40 px-4 py-2.5">
           <span className="text-sm">已選 {selected.size} 筆</span>
           <Button size="sm" onClick={importSelected}>
@@ -141,9 +173,37 @@ export function LyPanel() {
         </div>
       )}
 
+      {importing && (
+        <div className="flex items-center gap-3 border border-border bg-muted/40 px-4 py-3">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <div className="flex-1 text-sm">
+            正在取得逐字稿 {importing.done} / {importing.total}…
+          </div>
+          <div className="h-1 w-32 overflow-hidden bg-border">
+            <div
+              className="h-full bg-foreground/70 transition-all"
+              style={{ width: `${(importing.done / importing.total) * 100}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {importErrors.length > 0 && (
+        <details className="border border-destructive/30 bg-destructive/5 p-3 text-xs">
+          <summary className="cursor-pointer text-destructive">
+            {importErrors.length} 篇取得失敗
+          </summary>
+          <ul className="mt-2 space-y-1 text-destructive/80">
+            {importErrors.slice(0, 10).map((e, i) => (
+              <li key={i}>{e}</li>
+            ))}
+          </ul>
+        </details>
+      )}
+
       <div className="flex flex-wrap items-end gap-3 border border-border bg-surface p-4">
         <div className="flex-1 min-w-[240px]">
-          <label className="eyebrow mb-1.5 block">關鍵字（搜事由與說明）</label>
+          <label className="eyebrow mb-1.5 block">關鍵字（搜案由）</label>
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -186,16 +246,6 @@ export function LyPanel() {
             ))}
           </select>
         </div>
-
-        <div>
-          <label className="eyebrow mb-1.5 block">委員</label>
-          <Input
-            value={member}
-            onChange={(e) => setMember(e.target.value)}
-            placeholder="如：羅智強"
-            className="h-9 w-32"
-          />
-        </div>
       </div>
 
       {error ? (
@@ -205,9 +255,6 @@ export function LyPanel() {
             <div>
               <div className="font-medium text-destructive">無法取得資料</div>
               <div className="mt-1 text-muted-foreground">{error}</div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                ly.govapi.tw 是社群維護服務，偶有短暫不穩。請稍後重試。
-              </p>
             </div>
           </CardContent>
         </Card>
@@ -221,23 +268,27 @@ export function LyPanel() {
       ) : data ? (
         <>
           <div className="text-xs text-muted-foreground">
-            共 {data.total.toLocaleString()} 筆質詢符合條件，第 {data.page} / {data.totalPages} 頁
+            共 {data.total.toLocaleString()} 筆議程符合條件，第 {data.page} / {data.totalPages} 頁
+            <span className="ml-3 text-foreground/50">
+              · 每筆含完整委員會／院會逐字稿（含主席、立委、與會官員之對話）
+            </span>
           </div>
 
           <div className="space-y-3">
-            {data.interpellations.map((i) => (
-              <LyRow
-                key={i.id}
-                i={i}
-                selected={selected.has(i.id)}
-                onToggle={() => toggle(i)}
-                onImport={() => importOne(i)}
+            {data.agendas.map((a) => (
+              <AgendaRow
+                key={a.id}
+                a={a}
+                selected={selected.has(a.id)}
+                onToggle={() => toggle(a)}
+                onImport={() => importOne(a)}
+                disabled={!!importing}
               />
             ))}
-            {data.interpellations.length === 0 && (
+            {data.agendas.length === 0 && (
               <Card>
                 <CardContent className="py-12 text-center text-sm text-muted-foreground">
-                  本頁無結果。試試換關鍵字或拉寬篩選範圍。
+                  本頁無結果。
                 </CardContent>
               </Card>
             )}
@@ -248,7 +299,7 @@ export function LyPanel() {
               <Button
                 size="sm"
                 variant="outline"
-                disabled={page <= 1}
+                disabled={page <= 1 || !!importing}
                 onClick={() => setPage((p) => p - 1)}
               >
                 <ChevronLeft className="h-4 w-4" />
@@ -260,7 +311,7 @@ export function LyPanel() {
               <Button
                 size="sm"
                 variant="outline"
-                disabled={page >= data.totalPages}
+                disabled={page >= data.totalPages || !!importing}
                 onClick={() => setPage((p) => p + 1)}
               >
                 下一頁
@@ -274,55 +325,73 @@ export function LyPanel() {
   );
 }
 
-function LyRow({
-  i,
+function AgendaRow({
+  a,
   selected,
   onToggle,
   onImport,
+  disabled,
 }: {
-  i: Interpellation;
+  a: GazetteAgenda;
   selected: boolean;
   onToggle: () => void;
   onImport: () => void;
+  disabled: boolean;
 }) {
+  const pages = a.page_start != null && a.page_end != null ? a.page_end - a.page_start + 1 : null;
   return (
     <article
       className={cn(
         "border bg-surface p-5 transition",
-        selected
-          ? "border-foreground/40 bg-muted/30"
-          : "border-border hover:border-foreground/20",
+        selected ? "border-foreground/40 bg-muted/30" : "border-border hover:border-foreground/20",
       )}
     >
       <div className="flex items-start gap-3">
-        <button onClick={onToggle} className="mt-0.5 shrink-0 text-foreground/60 hover:text-foreground">
+        <button
+          onClick={onToggle}
+          disabled={disabled}
+          className="mt-0.5 shrink-0 text-foreground/60 hover:text-foreground disabled:opacity-40"
+        >
           {selected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
         </button>
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
             <Badge variant="outline" className="font-mono text-[10px]">
-              {i.id}
+              {a.id}
             </Badge>
-            <h3 className="text-base font-medium tracking-tightish">{i.subject}</h3>
+            <h3 className="text-base font-medium tracking-tightish">
+              第{a.term}屆第{a.session}會期 第{a.meeting}次
+            </h3>
+            <a
+              href={a.source_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-muted-foreground hover:text-foreground"
+              title="開啟立法院公報原文"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
-              <Users className="h-3 w-3" />
-              {i.members.join("、") || "（未列名）"}
-            </span>
-            <span>·</span>
-            <span className="flex items-center gap-1">
               <Calendar className="h-3 w-3" />
-              {i.publish_date}
+              {a.dates.join("、") || "（未列日期）"}
             </span>
-            <span>·</span>
-            <span>{i.meeting_label}</span>
+            {pages !== null && (
+              <>
+                <span>·</span>
+                <span className="flex items-center gap-1">
+                  <FileText className="h-3 w-3" />
+                  {pages} 頁逐字稿
+                </span>
+              </>
+            )}
           </div>
-          <p className="mt-3 line-clamp-3 text-sm text-foreground/85">{i.content}</p>
+          <p className="mt-3 line-clamp-3 text-sm text-foreground/85">{a.subject}</p>
 
           <div className="mt-3 flex items-center justify-end">
-            <Button size="sm" variant="outline" onClick={onImport}>
-              匯入並編碼
+            <Button size="sm" variant="outline" onClick={onImport} disabled={disabled}>
+              匯入逐字稿並編碼
               <ArrowRight className="h-3.5 w-3.5" />
             </Button>
           </div>

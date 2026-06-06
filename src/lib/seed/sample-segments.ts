@@ -153,6 +153,8 @@ export const SAMPLE_DOCUMENT = {
   uploaded_at: "2026-04-30T08:55:00Z",
   size_bytes: 28_440,
   page_count: 12,
+  source_kind: "upload" as const,
+  source_date: "2026-04-30",
   parsed_text:
     SAMPLE_SEGMENTS.map((s) => `【${s.speaker}】${s.text}`).join("\n\n") +
     "\n\n（…後續省略，完整逐字稿請於正式環境上傳）",

@@ -12,6 +12,8 @@ import { SAMPLE_DOCUMENT, SAMPLE_SEGMENTS } from "../seed/sample-segments";
  * entire data layer.
  */
 
+export type SourceKind = "upload" | "join" | "ly" | "gazette";
+
 export interface StrataDocument {
   id: string;
   name: string;
@@ -19,6 +21,11 @@ export interface StrataDocument {
   uploaded_at: string;
   size_bytes: number;
   page_count?: number;
+  /** Which source produced this document; defaults to "upload" */
+  source_kind?: SourceKind;
+  /** The document's content date (publish/meeting/submission), ISO format.
+   *  Used by the timeline visualization. Falls back to uploaded_at if absent. */
+  source_date?: string;
 }
 
 interface State {

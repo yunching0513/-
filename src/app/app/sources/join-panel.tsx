@@ -111,6 +111,8 @@ export function JoinPanel() {
       parsed_text: text,
       uploaded_at: new Date().toISOString(),
       size_bytes: new Blob([text]).size,
+      source_kind: "join",
+      source_date: p.submitted_date?.slice(0, 10) || undefined,
     });
     if (navigate) router.push("/app/coding");
   }
