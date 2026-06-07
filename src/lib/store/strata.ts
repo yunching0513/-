@@ -39,7 +39,7 @@ interface State {
   /** AI tier preference (legacy Strata-managed mode). */
   ai_tier: "free" | "pro" | "institute";
   /** User-chosen AI provider for BYO key mode. */
-  ai_provider: "anthropic" | "openai" | "gemini";
+  ai_provider: "anthropic" | "openai" | "gemini" | "taide";
   /** User-pasted API key. Stored in localStorage only — never sent off-device
    *  except in request bodies to /api/ai/*. Leave empty to fall back to the
    *  server's env var (deployer-managed mode). */
@@ -70,7 +70,7 @@ interface Actions {
   addUserCodebook: (cb: Codebook) => void;
   removeUserCodebook: (codebook_id: string) => void;
   setAiTier: (tier: "free" | "pro" | "institute") => void;
-  setAiProvider: (provider: "anthropic" | "openai" | "gemini") => void;
+  setAiProvider: (provider: "anthropic" | "openai" | "gemini" | "taide") => void;
   setAiApiKey: (key: string) => void;
   setAiModel: (model: string) => void;
   resetToSample: () => void;

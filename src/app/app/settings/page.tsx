@@ -250,7 +250,9 @@ function AiProviderCard() {
         { id: "claude-opus-4-8", label: "Claude Opus 4.8" },
       ],
       consoleUrl: "https://console.anthropic.com",
+      consoleLabel: "console.anthropic.com",
       keyHint: "sk-ant-…",
+      note: null as string | null,
     },
     {
       id: "openai" as const,
@@ -261,7 +263,9 @@ function AiProviderCard() {
         { id: "gpt-4.1", label: "GPT-4.1" },
       ],
       consoleUrl: "https://platform.openai.com/api-keys",
+      consoleLabel: "platform.openai.com",
       keyHint: "sk-…",
+      note: null,
     },
     {
       id: "gemini" as const,
@@ -272,7 +276,27 @@ function AiProviderCard() {
         { id: "gemini-1.5-flash", label: "Gemini 1.5 Flash" },
       ],
       consoleUrl: "https://aistudio.google.com/apikey",
+      consoleLabel: "aistudio.google.com",
       keyHint: "AIza…",
+      note: null,
+    },
+    {
+      id: "taide" as const,
+      name: "TAIDE 🇹🇼",
+      models: [
+        {
+          id: "Llama3-TAIDE-LX-8B-Chat-Alpha1",
+          label: "Llama3-TAIDE-LX-8B-Chat（推薦）",
+        },
+        {
+          id: "Llama3-TAIDE-LX-8B-Instruct-Alpha1",
+          label: "Llama3-TAIDE-LX-8B-Instruct",
+        },
+      ],
+      consoleUrl: "https://portal.genai.nchc.org.tw/",
+      consoleLabel: "portal.genai.nchc.org.tw",
+      keyHint: "NCHC iService API key",
+      note: "台灣本土繁中模型（國科會 TAIDE 計畫）。需 NCHC iService 帳號申請。模型較小（8B），適合輔助但 CoT 推理可能不如商用大模型。",
     },
   ];
 
@@ -290,7 +314,7 @@ function AiProviderCard() {
       <CardContent className="space-y-5">
         <div>
           <div className="eyebrow mb-2">供應商</div>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
             {providers.map((p) => (
               <button
                 key={p.id}
@@ -305,19 +329,20 @@ function AiProviderCard() {
                 <div className="font-medium">{p.name}</div>
                 <div
                   className={
-                    "text-[10px] " +
+                    "truncate text-[10px] " +
                     (provider === p.id ? "text-background/70" : "text-muted-foreground")
                   }
                 >
-                  {p.id === "anthropic"
-                    ? "console.anthropic.com"
-                    : p.id === "openai"
-                      ? "platform.openai.com"
-                      : "aistudio.google.com"}
+                  {p.consoleLabel}
                 </div>
               </button>
             ))}
           </div>
+          {current.note && (
+            <p className="mt-2 border-l-2 border-foreground/20 pl-2 text-[11px] text-muted-foreground">
+              {current.note}
+            </p>
+          )}
         </div>
 
         <div>
@@ -357,7 +382,7 @@ function AiProviderCard() {
               rel="noopener noreferrer"
               className="underline underline-offset-2 hover:text-foreground"
             >
-              {current.consoleUrl.replace("https://", "")}
+              {current.consoleLabel}
             </a>{" "}
             申請（多數供應商 Free tier 即可用 default 模型）。
             留空則會回退到伺服器預設 key（若部署者有設）。

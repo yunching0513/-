@@ -1028,12 +1028,13 @@ function AiSuggestSection({
 }
 
 function buildAiLabel(
-  provider: "anthropic" | "openai" | "gemini",
+  provider: "anthropic" | "openai" | "gemini" | "taide",
   model: string,
   tier: "free" | "pro" | "institute",
 ): string {
   if (model) return model.replace(/-20\d{6}$/, "");
   if (provider === "openai") return "GPT-4o mini";
   if (provider === "gemini") return "Gemini 2.5 Flash";
+  if (provider === "taide") return "TAIDE 8B";
   return tier === "free" ? "Haiku 4.5" : tier === "pro" ? "Sonnet 4.6" : "Opus 4.8";
 }

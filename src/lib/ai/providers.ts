@@ -4,11 +4,11 @@ import OpenAI from "openai";
 import { GoogleGenAI } from "@google/genai";
 
 /**
- * Multi-provider AI dispatch. Strata supports three providers; researchers
+ * Multi-provider AI dispatch. Strata supports four providers; researchers
  * can bring their own API key, otherwise fall back to a server-side env var.
  */
 
-export type Provider = "anthropic" | "openai" | "gemini";
+export type Provider = "anthropic" | "openai" | "gemini" | "taide";
 
 export interface ProviderModel {
   provider: Provider;
@@ -43,6 +43,19 @@ export const MODELS: Record<Provider, ProviderModel[]> = {
     },
     { provider: "gemini", label: "Gemini 2.5 Pro", id: "gemini-2.5-pro" },
     { provider: "gemini", label: "Gemini 1.5 Flash", id: "gemini-1.5-flash" },
+  ],
+  taide: [
+    {
+      provider: "taide",
+      label: "Llama3-TAIDE-LX-8B-Chat",
+      id: "Llama3-TAIDE-LX-8B-Chat-Alpha1",
+      default: true,
+    },
+    {
+      provider: "taide",
+      label: "Llama3-TAIDE-LX-8B-Instruct",
+      id: "Llama3-TAIDE-LX-8B-Instruct-Alpha1",
+    },
   ],
 };
 
@@ -102,6 +115,42 @@ export async function complete(req: CompletionRequest): Promise<string> {
       });
       return res.text ?? "";
     }
+    case "taide": {
+      // TAIDE 透過國網中心 (NCHC) 多模型 API 平台對外提供 OpenAI 相容 API。
+      // 認證 header 不是 Authorization Bearer，而是 x-api-key。
+      // 因此手寫 fetch，不走 OpenAI SDK。
+      const res = await fetch(
+        "https://portal.genai.nchc.org.tw/api/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-api-key": req.api_key,
+          },
+          body: JSON.stringify({
+            model: req.model,
+            messages: [
+              { role: "system", content: req.system },
+              { role: "user", content: req.user },
+            ],
+            max_tokens: maxTokens,
+          }),
+          signal: AbortSignal.timeout(60_000),
+        },
+      );
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => "");
+        const err = new Error(`HTTP ${res.status} ${errBody}`) as Error & {
+          status?: number;
+        };
+        err.status = res.status;
+        throw err;
+      }
+      const data = (await res.json()) as {
+        choices?: { message?: { content?: string } }[];
+      };
+      return data.choices?.[0]?.message?.content ?? "";
+    }
   }
 }
 
@@ -121,7 +170,10 @@ export function translateError(
   const raw = err instanceof Error ? err.message : String(err);
   const providerName = providerLabel(provider);
 
-  if (status === 401 || /unauthor|invalid.*key/i.test(raw)) {
+  if (
+    status === 401 ||
+    /unauthor|invalid.*key|AuthenticationError|API Key 驗證失敗/i.test(raw)
+  ) {
     return new Error(`${providerName} API key 無效。請確認 key 是否正確、未過期。`);
   }
   if (status === 402 || /insufficient.*quota|billing/i.test(raw)) {
@@ -149,7 +201,10 @@ export function translateError(
 }
 
 export function providerLabel(p: Provider): string {
-  return p === "anthropic" ? "Anthropic" : p === "openai" ? "OpenAI" : "Google Gemini";
+  if (p === "anthropic") return "Anthropic";
+  if (p === "openai") return "OpenAI";
+  if (p === "gemini") return "Google Gemini";
+  return "TAIDE（國網中心）";
 }
 
 /**
@@ -172,6 +227,10 @@ export function validateKeyShape(provider: Provider, key: string): string | null
       // Gemini keys start with "AI" typically (e.g. AIza...)
       if (!/^AI[A-Za-z0-9_-]{30,}$/.test(k))
         return "Gemini key 看起來不像（通常以 AI 開頭、約 39 字元）";
+      break;
+    case "taide":
+      // TAIDE / NCHC key 格式未公開固定樣式；只要不空白即可
+      if (k.length < 8) return "TAIDE key 看起來太短，請確認從 NCHC iService 複製完整";
       break;
   }
   return null;

@@ -91,12 +91,14 @@ function envKeyFor(provider: Provider): string | undefined {
   if (provider === "anthropic") return process.env.ANTHROPIC_API_KEY;
   if (provider === "openai") return process.env.OPENAI_API_KEY;
   if (provider === "gemini") return process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY;
+  if (provider === "taide") return process.env.TAIDE_API_KEY ?? process.env.NCHC_API_KEY;
 }
 
 function envVarName(provider: Provider): string {
   if (provider === "anthropic") return "ANTHROPIC_API_KEY";
   if (provider === "openai") return "OPENAI_API_KEY";
-  return "GOOGLE_API_KEY";
+  if (provider === "gemini") return "GOOGLE_API_KEY";
+  return "TAIDE_API_KEY";
 }
 
 function renderCodebookBlock(cb: Codebook): string {
