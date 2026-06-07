@@ -851,6 +851,9 @@ function AiSuggestSection({
   const setConfidence = useStrata((s) => s.setConfidence);
   const setInterweaving = useStrata((s) => s.setInterweaving);
   const ai_tier = useStrata((s) => s.ai_tier);
+  const ai_provider = useStrata((s) => s.ai_provider);
+  const ai_api_key = useStrata((s) => s.ai_api_key);
+  const ai_model = useStrata((s) => s.ai_model);
 
   const [status, setStatus] = useState<"idle" | "loading" | "ok" | "error">("idle");
   const [result, setResult] = useState<AiResult | null>(null);
@@ -867,6 +870,9 @@ function AiSuggestSection({
           text: segment.text,
           speaker: segment.speaker,
           codebook_id: codebook.codebook_id,
+          provider: ai_provider,
+          model: ai_model || undefined,
+          api_key: ai_api_key || undefined,
           tier: ai_tier,
         }),
       });
@@ -897,8 +903,7 @@ function AiSuggestSection({
     }
   }
 
-  const modelLabel =
-    ai_tier === "free" ? "Haiku 4.5" : ai_tier === "pro" ? "Sonnet 4.6" : "Opus 4.7";
+  const modelLabel = buildAiLabel(ai_provider, ai_model, ai_tier);
 
   return (
     <section className="border border-border bg-muted/40 p-4">
@@ -1020,4 +1025,15 @@ function AiSuggestSection({
       )}
     </section>
   );
+}
+
+function buildAiLabel(
+  provider: "anthropic" | "openai" | "gemini",
+  model: string,
+  tier: "free" | "pro" | "institute",
+): string {
+  if (model) return model.replace(/-20\d{6}$/, "");
+  if (provider === "openai") return "GPT-4o mini";
+  if (provider === "gemini") return "Gemini 2.5 Flash";
+  return tier === "free" ? "Haiku 4.5" : tier === "pro" ? "Sonnet 4.6" : "Opus 4.8";
 }

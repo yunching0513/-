@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { Loader2, CheckCircle2, AlertCircle, Sparkles } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,12 +13,54 @@ import {
 } from "@/lib/store/strata";
 import { downloadExcel, downloadQdpx } from "@/lib/export/client";
 
+interface AiTestResult {
+  ok: boolean;
+  stage: string;
+  message: string;
+  model?: string;
+  reply?: string;
+  status?: number;
+  raw?: string;
+  key_prefix?: string;
+}
+
 export default function SettingsPage() {
   const segments = useActiveSegments();
   const document = useActiveDocument();
   const cb = useActiveCodebook();
   const aiTier = useStrata((s) => s.ai_tier);
   const setAiTier = useStrata((s) => s.setAiTier);
+
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<AiTestResult | null>(null);
+
+  const aiProvider = useStrata((s) => s.ai_provider);
+  const aiApiKey = useStrata((s) => s.ai_api_key);
+
+  async function runAiTest() {
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const res = await fetch("/api/ai/test", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          provider: aiProvider,
+          api_key: aiApiKey || undefined,
+        }),
+      });
+      const data = (await res.json()) as AiTestResult;
+      setTestResult(data);
+    } catch (err) {
+      setTestResult({
+        ok: false,
+        stage: "network",
+        message: err instanceof Error ? err.message : "網路錯誤",
+      });
+    } finally {
+      setTesting(false);
+    }
+  }
 
   return (
     <div className="space-y-8 p-10">
@@ -28,17 +72,22 @@ export default function SettingsPage() {
         </p>
       </header>
 
-      <Card>
+      <AiProviderCard />
+
+      {/* Legacy tier — only shown for users without BYO key, as informational */}
+      <Card className="opacity-70">
         <CardHeader>
-          <CardTitle className="text-base">AI 模型</CardTitle>
-          <CardDescription>選擇預設模型；按量計費，不會強制升級。</CardDescription>
+          <CardTitle className="text-base">伺服器代管模型分層（legacy）</CardTitle>
+          <CardDescription>
+            若你不提供 API key，平台會用部署者預設的 Anthropic key（受限於部署者方案）
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {(
             [
-              { id: "free", name: "Free 個人版", model: "Claude Haiku 4.5", price: "免費 50,000 字 / 月" },
-              { id: "pro", name: "Academic Pro", model: "Claude Sonnet 4.6", price: "按量計費" },
-              { id: "institute", name: "機構版", model: "Claude Opus 4.8", price: "聯繫洽談" },
+              { id: "free", name: "Free 個人版", model: "Claude Haiku 4.5" },
+              { id: "pro", name: "Academic Pro", model: "Claude Sonnet 4.6" },
+              { id: "institute", name: "機構版", model: "Claude Opus 4.8" },
             ] as const
           ).map((t) => (
             <label
@@ -55,23 +104,89 @@ export default function SettingsPage() {
                 <div className="text-sm font-medium">{t.name}</div>
                 <div className="text-xs text-muted-foreground">{t.model}</div>
               </div>
-              <Badge variant="outline">{t.price}</Badge>
             </label>
           ))}
-          <p className="pt-2 text-[11px] text-muted-foreground">
-            注意：Sonnet 與 Opus 模型需要 Anthropic 帳戶有對應方案的存取權限。
-            若收到 403「Request not allowed」錯誤，請改用 Haiku 4.5 或至{" "}
-            <a
-              href="https://console.anthropic.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline underline-offset-2 hover:text-foreground"
-            >
-              console.anthropic.com
-            </a>{" "}
-            升級方案。
-          </p>
         </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-start justify-between">
+            <div>
+              <CardTitle className="text-base">AI 連線測試</CardTitle>
+              <CardDescription>
+                直接 ping Anthropic API 一次，診斷 API key、權限、計費狀態
+              </CardDescription>
+            </div>
+            <Button size="sm" variant="outline" onClick={runAiTest} disabled={testing}>
+              {testing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              {testing ? "測試中..." : "測試連線"}
+            </Button>
+          </div>
+        </CardHeader>
+        {testResult && (
+          <CardContent>
+            <div
+              className={
+                "flex items-start gap-3 border p-4 text-sm " +
+                (testResult.ok
+                  ? "border-foreground/20 bg-muted/30"
+                  : "border-destructive/30 bg-destructive/5")
+              }
+            >
+              {testResult.ok ? (
+                <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-foreground/70" />
+              ) : (
+                <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+              )}
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <div
+                  className={
+                    "font-medium " + (testResult.ok ? "" : "text-destructive")
+                  }
+                >
+                  {testResult.ok ? "✓ 連線成功" : "✗ 連線失敗"}
+                  {testResult.status && (
+                    <span className="ml-2 font-mono text-xs text-muted-foreground">
+                      HTTP {testResult.status}
+                    </span>
+                  )}
+                  {testResult.stage && testResult.stage !== "success" && (
+                    <Badge variant="outline" className="ml-2">
+                      {stageLabel(testResult.stage)}
+                    </Badge>
+                  )}
+                </div>
+                <p className="break-words text-foreground/85">{testResult.message}</p>
+                {testResult.ok && testResult.reply && (
+                  <p className="text-xs text-muted-foreground">
+                    模型：<span className="font-mono">{testResult.model}</span>　·　回應：
+                    <span className="italic">"{testResult.reply}"</span>
+                  </p>
+                )}
+                {testResult.key_prefix && (
+                  <p className="text-xs text-muted-foreground">
+                    使用的 key：<span className="font-mono">{testResult.key_prefix}</span>
+                  </p>
+                )}
+                {!testResult.ok && testResult.raw && (
+                  <details className="text-xs">
+                    <summary className="cursor-pointer text-muted-foreground">
+                      原始錯誤訊息
+                    </summary>
+                    <pre className="mt-1 overflow-x-auto rounded-sm bg-muted p-2 font-mono">
+                      {testResult.raw}
+                    </pre>
+                  </details>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        )}
       </Card>
 
       <Card>
@@ -114,6 +229,184 @@ export default function SettingsPage() {
       </Card>
     </div>
   );
+}
+
+function AiProviderCard() {
+  const provider = useStrata((s) => s.ai_provider);
+  const setProvider = useStrata((s) => s.setAiProvider);
+  const apiKey = useStrata((s) => s.ai_api_key);
+  const setApiKey = useStrata((s) => s.setAiApiKey);
+  const model = useStrata((s) => s.ai_model);
+  const setModel = useStrata((s) => s.setAiModel);
+  const [showKey, setShowKey] = useState(false);
+
+  const providers = [
+    {
+      id: "anthropic" as const,
+      name: "Anthropic Claude",
+      models: [
+        { id: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5（推薦）" },
+        { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6" },
+        { id: "claude-opus-4-8", label: "Claude Opus 4.8" },
+      ],
+      consoleUrl: "https://console.anthropic.com",
+      keyHint: "sk-ant-…",
+    },
+    {
+      id: "openai" as const,
+      name: "OpenAI",
+      models: [
+        { id: "gpt-4o-mini", label: "GPT-4o mini（推薦）" },
+        { id: "gpt-4o", label: "GPT-4o" },
+        { id: "gpt-4.1", label: "GPT-4.1" },
+      ],
+      consoleUrl: "https://platform.openai.com/api-keys",
+      keyHint: "sk-…",
+    },
+    {
+      id: "gemini" as const,
+      name: "Google Gemini",
+      models: [
+        { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash（推薦）" },
+        { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
+        { id: "gemini-1.5-flash", label: "Gemini 1.5 Flash" },
+      ],
+      consoleUrl: "https://aistudio.google.com/apikey",
+      keyHint: "AIza…",
+    },
+  ];
+
+  const current = providers.find((p) => p.id === provider) ?? providers[0];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">AI 供應商與 API key</CardTitle>
+        <CardDescription>
+          自己貼 key 走自己的帳號 — 你的 key 只存於本機瀏覽器（localStorage），
+          僅在請求時隨 body 送往 Strata 後端，由後端轉發給該供應商。
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <div>
+          <div className="eyebrow mb-2">供應商</div>
+          <div className="grid grid-cols-3 gap-2">
+            {providers.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => setProvider(p.id)}
+                className={
+                  "rounded-sm border px-3 py-2.5 text-left text-sm transition " +
+                  (provider === p.id
+                    ? "border-foreground bg-foreground text-background"
+                    : "border-border hover:bg-muted/40")
+                }
+              >
+                <div className="font-medium">{p.name}</div>
+                <div
+                  className={
+                    "text-[10px] " +
+                    (provider === p.id ? "text-background/70" : "text-muted-foreground")
+                  }
+                >
+                  {p.id === "anthropic"
+                    ? "console.anthropic.com"
+                    : p.id === "openai"
+                      ? "platform.openai.com"
+                      : "aistudio.google.com"}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <div className="eyebrow mb-2">API key</div>
+          <div className="flex gap-2">
+            <input
+              type={showKey ? "text" : "password"}
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder={`貼上你的 ${current.name} key — ${current.keyHint}`}
+              className="flex-1 rounded-sm border border-border bg-surface px-3 py-2 font-mono text-sm"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowKey(!showKey)}
+              className="shrink-0"
+            >
+              {showKey ? "隱藏" : "顯示"}
+            </Button>
+            {apiKey && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setApiKey("")}
+                className="shrink-0"
+              >
+                清除
+              </Button>
+            )}
+          </div>
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            還沒有 key？前往{" "}
+            <a
+              href={current.consoleUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-2 hover:text-foreground"
+            >
+              {current.consoleUrl.replace("https://", "")}
+            </a>{" "}
+            申請（多數供應商 Free tier 即可用 default 模型）。
+            留空則會回退到伺服器預設 key（若部署者有設）。
+          </p>
+        </div>
+
+        <div>
+          <div className="eyebrow mb-2">模型</div>
+          <select
+            value={model || current.models[0].id}
+            onChange={(e) => setModel(e.target.value)}
+            className="h-9 w-full max-w-md rounded-sm border border-border bg-surface px-3 text-sm"
+          >
+            {current.models.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.label}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1.5 text-[11px] text-muted-foreground">
+            建議使用該供應商的最小／最快模型（標示「推薦」者）— 適合質性研究且成本最低。
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function stageLabel(stage: string): string {
+  switch (stage) {
+    case "config":
+      return "設定問題";
+    case "key":
+      return "Key 無效";
+    case "billing":
+      return "帳單問題";
+    case "permission":
+      return "模型權限";
+    case "rate":
+      return "速率限制";
+    case "overload":
+      return "服務過載";
+    case "upstream":
+      return "上游錯誤";
+    case "network":
+      return "網路錯誤";
+    default:
+      return stage;
+  }
 }
 
 function Row({ label, value }: { label: string; value: string }) {

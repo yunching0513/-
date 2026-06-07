@@ -1,0 +1,178 @@
+import "server-only";
+import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
+import { GoogleGenAI } from "@google/genai";
+
+/**
+ * Multi-provider AI dispatch. Strata supports three providers; researchers
+ * can bring their own API key, otherwise fall back to a server-side env var.
+ */
+
+export type Provider = "anthropic" | "openai" | "gemini";
+
+export interface ProviderModel {
+  provider: Provider;
+  label: string;
+  id: string;
+  /** Whether this is the recommended default for the provider */
+  default?: boolean;
+}
+
+export const MODELS: Record<Provider, ProviderModel[]> = {
+  anthropic: [
+    {
+      provider: "anthropic",
+      label: "Claude Haiku 4.5",
+      id: "claude-haiku-4-5-20251001",
+      default: true,
+    },
+    { provider: "anthropic", label: "Claude Sonnet 4.6", id: "claude-sonnet-4-6" },
+    { provider: "anthropic", label: "Claude Opus 4.8", id: "claude-opus-4-8" },
+  ],
+  openai: [
+    { provider: "openai", label: "GPT-4o mini", id: "gpt-4o-mini", default: true },
+    { provider: "openai", label: "GPT-4o", id: "gpt-4o" },
+    { provider: "openai", label: "GPT-4.1", id: "gpt-4.1" },
+  ],
+  gemini: [
+    {
+      provider: "gemini",
+      label: "Gemini 2.5 Flash",
+      id: "gemini-2.5-flash",
+      default: true,
+    },
+    { provider: "gemini", label: "Gemini 2.5 Pro", id: "gemini-2.5-pro" },
+    { provider: "gemini", label: "Gemini 1.5 Flash", id: "gemini-1.5-flash" },
+  ],
+};
+
+export function defaultModel(provider: Provider): string {
+  return MODELS[provider].find((m) => m.default)?.id ?? MODELS[provider][0].id;
+}
+
+export interface CompletionRequest {
+  provider: Provider;
+  api_key: string;
+  model: string;
+  system: string;
+  user: string;
+  max_tokens?: number;
+}
+
+/**
+ * Unified call interface — returns plain text response. Caller parses JSON
+ * out of it. All three providers are instructed via system + user messages;
+ * for Gemini we concatenate system into the prompt prefix.
+ */
+export async function complete(req: CompletionRequest): Promise<string> {
+  const maxTokens = req.max_tokens ?? 1024;
+  switch (req.provider) {
+    case "anthropic": {
+      const client = new Anthropic({ apiKey: req.api_key });
+      const res = await client.messages.create({
+        model: req.model,
+        max_tokens: maxTokens,
+        system: req.system,
+        messages: [{ role: "user", content: req.user }],
+      });
+      const block = res.content.find((c) => c.type === "text");
+      return block && "text" in block ? block.text : "";
+    }
+    case "openai": {
+      const client = new OpenAI({ apiKey: req.api_key });
+      const res = await client.chat.completions.create({
+        model: req.model,
+        max_completion_tokens: maxTokens,
+        messages: [
+          { role: "system", content: req.system },
+          { role: "user", content: req.user },
+        ],
+      });
+      return res.choices[0]?.message?.content ?? "";
+    }
+    case "gemini": {
+      const client = new GoogleGenAI({ apiKey: req.api_key });
+      const res = await client.models.generateContent({
+        model: req.model,
+        contents: req.user,
+        config: {
+          systemInstruction: req.system,
+          maxOutputTokens: maxTokens,
+        },
+      });
+      return res.text ?? "";
+    }
+  }
+}
+
+/**
+ * Translate provider-specific errors to a unified, user-readable message.
+ * Recognises the canonical status codes; falls back to raw message.
+ */
+export function translateError(
+  err: unknown,
+  provider: Provider,
+  model: string,
+): Error {
+  const status =
+    err && typeof err === "object" && "status" in err
+      ? Number((err as { status: unknown }).status)
+      : null;
+  const raw = err instanceof Error ? err.message : String(err);
+  const providerName = providerLabel(provider);
+
+  if (status === 401 || /unauthor|invalid.*key/i.test(raw)) {
+    return new Error(`${providerName} API key 無效。請確認 key 是否正確、未過期。`);
+  }
+  if (status === 402 || /insufficient.*quota|billing/i.test(raw)) {
+    return new Error(
+      `${providerName} 帳戶餘額不足或未設定付款方式。請至該供應商 console 加入信用卡或購買 credits。`,
+    );
+  }
+  if (status === 403 || /forbidden|not allowed|permission/i.test(raw)) {
+    return new Error(
+      `${providerName} 拒絕請求（403）— 你的 key 可能沒有權限使用 ${model}。可能原因：` +
+        `(a) 帳戶尚未驗證；(b) workspace 限制了模型存取；(c) 該模型已被淘汰。` +
+        `建議改用該供應商的「預設小模型」或重新檢查帳戶設定。`,
+    );
+  }
+  if (status === 429 || /rate.*limit/i.test(raw)) {
+    return new Error(`${providerName} 速率限制（429）。請稍候 30–60 秒重試。`);
+  }
+  if (status === 529 || /overload/i.test(raw)) {
+    return new Error(`${providerName} 服務暫時過載。請稍後重試。`);
+  }
+  if (status && status >= 500) {
+    return new Error(`${providerName} 伺服器錯誤（${status}）。請稍後重試。`);
+  }
+  return new Error(`${providerName} 呼叫失敗：${raw}`);
+}
+
+export function providerLabel(p: Provider): string {
+  return p === "anthropic" ? "Anthropic" : p === "openai" ? "OpenAI" : "Google Gemini";
+}
+
+/**
+ * Validate that an API key has the right shape for the chosen provider.
+ * Returns an error message if invalid, null if shape is plausible.
+ */
+export function validateKeyShape(provider: Provider, key: string): string | null {
+  const k = key.trim();
+  if (!k) return "未填 API key";
+  if (k !== key) return "key 前後有空白字元，請清掉";
+  switch (provider) {
+    case "anthropic":
+      if (!k.startsWith("sk-ant-"))
+        return "Anthropic key 應以 sk-ant- 開頭";
+      break;
+    case "openai":
+      if (!k.startsWith("sk-")) return "OpenAI key 應以 sk- 開頭";
+      break;
+    case "gemini":
+      // Gemini keys start with "AI" typically (e.g. AIza...)
+      if (!/^AI[A-Za-z0-9_-]{30,}$/.test(k))
+        return "Gemini key 看起來不像（通常以 AI 開頭、約 39 字元）";
+      break;
+  }
+  return null;
+}

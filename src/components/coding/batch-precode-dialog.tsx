@@ -98,6 +98,9 @@ export function BatchPrecodeDialog({
   const setConfidence = useStrata((s) => s.setConfidence);
   const setInterweaving = useStrata((s) => s.setInterweaving);
   const ai_tier = useStrata((s) => s.ai_tier);
+  const ai_provider = useStrata((s) => s.ai_provider);
+  const ai_api_key = useStrata((s) => s.ai_api_key);
+  const ai_model = useStrata((s) => s.ai_model);
 
   const [phase, setPhase] = useState<"setup" | "running" | "done" | "cancelled">("setup");
   const [progress, setProgress] = useState(0);
@@ -129,8 +132,7 @@ export function BatchPrecodeDialog({
 
   if (!open) return null;
 
-  const modelLabel =
-    ai_tier === "free" ? "Haiku 4.5" : ai_tier === "pro" ? "Sonnet 4.6" : "Opus 4.8";
+  const modelLabel = buildModelLabel(ai_provider, ai_model, ai_tier);
   const estTokens = candidates.reduce((sum, c) => sum + Math.ceil(c.text.length * 1.5), 0);
 
   async function runBatch() {
@@ -166,6 +168,9 @@ export function BatchPrecodeDialog({
             text: c.text,
             speaker: c.speaker,
             codebook_id: codebook.codebook_id,
+            provider: ai_provider,
+            model: ai_model || undefined,
+            api_key: ai_api_key || undefined,
             tier: ai_tier,
           }),
         });
@@ -418,4 +423,15 @@ function Stat({ label, value, hint }: { label: string; value: string; hint?: str
       {hint && <div className="text-[10px] text-muted-foreground">{hint}</div>}
     </div>
   );
+}
+
+function buildModelLabel(
+  provider: "anthropic" | "openai" | "gemini",
+  model: string,
+  tier: "free" | "pro" | "institute",
+): string {
+  if (model) return model.replace(/-20\d{6}$/, "");
+  if (provider === "openai") return "GPT-4o mini";
+  if (provider === "gemini") return "Gemini 2.5 Flash";
+  return tier === "free" ? "Haiku 4.5" : tier === "pro" ? "Sonnet 4.6" : "Opus 4.8";
 }

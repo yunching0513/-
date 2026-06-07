@@ -36,8 +36,16 @@ interface State {
   segments: CodedSegment[];
   /** User-imported codebooks. */
   userCodebooks: Codebook[];
-  /** AI tier preference. */
+  /** AI tier preference (legacy Strata-managed mode). */
   ai_tier: "free" | "pro" | "institute";
+  /** User-chosen AI provider for BYO key mode. */
+  ai_provider: "anthropic" | "openai" | "gemini";
+  /** User-pasted API key. Stored in localStorage only — never sent off-device
+   *  except in request bodies to /api/ai/*. Leave empty to fall back to the
+   *  server's env var (deployer-managed mode). */
+  ai_api_key: string;
+  /** User-chosen model id within the active provider. Empty = provider default. */
+  ai_model: string;
 }
 
 interface Actions {
@@ -62,6 +70,9 @@ interface Actions {
   addUserCodebook: (cb: Codebook) => void;
   removeUserCodebook: (codebook_id: string) => void;
   setAiTier: (tier: "free" | "pro" | "institute") => void;
+  setAiProvider: (provider: "anthropic" | "openai" | "gemini") => void;
+  setAiApiKey: (key: string) => void;
+  setAiModel: (model: string) => void;
   resetToSample: () => void;
 }
 
@@ -72,6 +83,9 @@ const initialState: State = {
   segments: SAMPLE_SEGMENTS,
   userCodebooks: [],
   ai_tier: "free",
+  ai_provider: "anthropic",
+  ai_api_key: "",
+  ai_model: "",
 };
 
 export const useStrata = create<State & Actions>()(
@@ -231,6 +245,12 @@ export const useStrata = create<State & Actions>()(
         })),
 
       setAiTier: (tier) => set({ ai_tier: tier }),
+
+      setAiProvider: (provider) => set({ ai_provider: provider, ai_model: "" }),
+
+      setAiApiKey: (key) => set({ ai_api_key: key }),
+
+      setAiModel: (model) => set({ ai_model: model }),
 
       resetToSample: () => set({ ...initialState }),
     }),
