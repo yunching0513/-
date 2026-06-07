@@ -217,30 +217,16 @@ export function providerLabel(p: Provider): string {
 }
 
 /**
- * Validate that an API key has the right shape for the chosen provider.
- * Returns an error message if invalid, null if shape is plausible.
+ * Light-touch shape check. We don't try to be clever about prefixes — every
+ * provider's actual API will give a better verdict than our regex. We only
+ * catch the obvious mistakes (empty key, dragged-in whitespace, way too short).
  */
 export function validateKeyShape(provider: Provider, key: string): string | null {
   const k = key.trim();
   if (!k) return "未填 API key";
   if (k !== key) return "key 前後有空白字元，請清掉";
-  switch (provider) {
-    case "anthropic":
-      if (!k.startsWith("sk-ant-"))
-        return "Anthropic key 應以 sk-ant- 開頭";
-      break;
-    case "openai":
-      if (!k.startsWith("sk-")) return "OpenAI key 應以 sk- 開頭";
-      break;
-    case "gemini":
-      // Gemini keys start with "AI" typically (e.g. AIza...)
-      if (!/^AI[A-Za-z0-9_-]{30,}$/.test(k))
-        return "Gemini key 看起來不像（通常以 AI 開頭、約 39 字元）";
-      break;
-    case "taide":
-      // TAIDE / NCHC key 格式未公開固定樣式；只要不空白即可
-      if (k.length < 8) return "TAIDE key 看起來太短，請確認從 NCHC iService 複製完整";
-      break;
-  }
+  if (k.length < 10) return "key 看起來太短，請確認複製完整";
+  // Provider-specific hints are now informational only — we don't block.
+  // The real check happens when we hit the provider's API.
   return null;
 }
