@@ -21,13 +21,16 @@ export const maxDuration = 30;
 export async function POST(req: Request) {
   let provider: Provider = "anthropic";
   let api_key = "";
+  let preferredModel = "";
   try {
     const body = (await req.json().catch(() => ({}))) as {
       provider?: Provider;
       api_key?: string;
+      model?: string;
     };
     if (body.provider) provider = body.provider;
     if (body.api_key) api_key = body.api_key;
+    if (body.model) preferredModel = body.model;
   } catch {
     // fall through with defaults
   }
@@ -68,7 +71,7 @@ export async function POST(req: Request) {
     }
   }
 
-  const model = defaultModel(provider);
+  const model = preferredModel || defaultModel(provider);
 
   try {
     const reply = await complete({

@@ -36,6 +36,7 @@ export default function SettingsPage() {
 
   const aiProvider = useStrata((s) => s.ai_provider);
   const aiApiKey = useStrata((s) => s.ai_api_key);
+  const aiModel = useStrata((s) => s.ai_model);
 
   async function runAiTest() {
     setTesting(true);
@@ -47,6 +48,7 @@ export default function SettingsPage() {
         body: JSON.stringify({
           provider: aiProvider,
           api_key: aiApiKey || undefined,
+          model: aiModel || undefined,
         }),
       });
       const data = (await res.json()) as AiTestResult;

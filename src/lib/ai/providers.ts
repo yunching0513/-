@@ -22,10 +22,11 @@ export const MODELS: Record<Provider, ProviderModel[]> = {
   anthropic: [
     {
       provider: "anthropic",
-      label: "Claude Haiku 4.5",
-      id: "claude-haiku-4-5-20251001",
+      label: "Claude 3.5 Haiku（最廣相容）",
+      id: "claude-3-5-haiku-20241022",
       default: true,
     },
+    { provider: "anthropic", label: "Claude Haiku 4.5（新版）", id: "claude-haiku-4-5-20251001" },
     { provider: "anthropic", label: "Claude Sonnet 4.6", id: "claude-sonnet-4-6" },
     { provider: "anthropic", label: "Claude Opus 4.8", id: "claude-opus-4-8" },
   ],
@@ -182,10 +183,18 @@ export function translateError(
     );
   }
   if (status === 403 || /forbidden|not allowed|permission/i.test(raw)) {
+    const isNewClaude = /claude-(haiku-4|sonnet-4|opus-4)/i.test(model);
+    const hint =
+      provider === "anthropic" && isNewClaude
+        ? "\n\n常見解法：去「設定」把模型改為「Claude 3.5 Haiku（最廣相容）」— " +
+          "這個版本舊但便宜，幾乎所有 Anthropic 帳戶都能用。"
+        : provider === "anthropic"
+          ? "\n\n建議：去 console.anthropic.com 確認帳戶已驗證（含信用卡），且 workspace 有此模型存取權。"
+          : "\n\n建議改用該供應商的「預設小模型」或檢查帳戶設定。";
     return new Error(
-      `${providerName} 拒絕請求（403）— 你的 key 可能沒有權限使用 ${model}。可能原因：` +
-        `(a) 帳戶尚未驗證；(b) workspace 限制了模型存取；(c) 該模型已被淘汰。` +
-        `建議改用該供應商的「預設小模型」或重新檢查帳戶設定。`,
+      `${providerName} 拒絕請求（403）— 你的 key 沒有權限使用 ${model}。可能原因：` +
+        `(a) 帳戶尚未驗證；(b) workspace 限制了模型存取；(c) 該模型較新、key 未授權。` +
+        hint,
     );
   }
   if (status === 429 || /rate.*limit/i.test(raw)) {
