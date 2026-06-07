@@ -8,14 +8,20 @@ import type { Codebook } from "../codebook/types";
  * Tier mapping:
  *   - free      → Claude Haiku 4.5
  *   - pro       → Claude Sonnet 4.6
- *   - institute → Claude Opus 4.7
+ *   - institute → Claude Opus 4.8
  */
 export type Tier = "free" | "pro" | "institute";
 
 const MODEL: Record<Tier, string> = {
   free: "claude-haiku-4-5-20251001",
   pro: "claude-sonnet-4-6",
-  institute: "claude-opus-4-7",
+  institute: "claude-opus-4-8",
+};
+
+const MODEL_LABEL: Record<Tier, string> = {
+  free: "Claude Haiku 4.5",
+  pro: "Claude Sonnet 4.6",
+  institute: "Claude Opus 4.8",
 };
 
 export interface SuggestionRequest {
@@ -50,7 +56,9 @@ export async function suggestCoding(
   // We use prompt caching on the codebook block so repeated calls are cheap.
   const codebookBlock = renderCodebookBlock(req.codebook);
 
-  const message = await client.messages.create({
+  let message;
+  try {
+    message = await client.messages.create({
     model: MODEL[tier],
     max_tokens: 1024,
     system: [
@@ -86,11 +94,54 @@ export async function suggestCoding(
       },
     ],
   });
+  } catch (err) {
+    throw translateAnthropicError(err, tier);
+  }
 
   const block = message.content.find((c) => c.type === "text");
   const raw = block && "text" in block ? block.text : "";
   const json = extractJson(raw);
   return json as SuggestionResult;
+}
+
+/**
+ * Map Anthropic SDK errors to user-readable messages with concrete next steps.
+ * Especially helps non-engineer users understand 403s ("your key can't use
+ * this model") and 429s ("you hit a rate limit").
+ */
+function translateAnthropicError(err: unknown, tier: Tier): Error {
+  const status =
+    err && typeof err === "object" && "status" in err
+      ? Number((err as { status: unknown }).status)
+      : null;
+  const raw = err instanceof Error ? err.message : String(err);
+
+  if (status === 401) {
+    return new Error(
+      "ANTHROPIC_API_KEY 無效或已停用。請至 console.anthropic.com 確認 API key。",
+    );
+  }
+  if (status === 403) {
+    return new Error(
+      `你的 API key 沒有權限使用 ${MODEL_LABEL[tier]}（${MODEL[tier]}）。可能原因：` +
+        `(1) Anthropic 帳戶尚未升級到對應方案；` +
+        `(2) 該模型在你的地區或組織內被限制。` +
+        `建議到「設定」改用 Haiku 4.5（Free tier 可用），或到 console.anthropic.com 升級方案。`,
+    );
+  }
+  if (status === 429) {
+    return new Error(
+      "Anthropic API 速率限制（429）。請稍候 30–60 秒再試；批次預編碼可降低並行數或縮小範圍。",
+    );
+  }
+  if (status === 529) {
+    return new Error("Anthropic 服務暫時過載（529）。請稍後重試。");
+  }
+  if (status && status >= 500) {
+    return new Error(`Anthropic 伺服器錯誤（${status}）。請稍後重試。`);
+  }
+  // Fallback: keep raw message but prefix for clarity
+  return new Error(`AI 呼叫失敗：${raw}`);
 }
 
 function renderCodebookBlock(cb: Codebook): string {

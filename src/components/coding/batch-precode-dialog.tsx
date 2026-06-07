@@ -130,7 +130,7 @@ export function BatchPrecodeDialog({
   if (!open) return null;
 
   const modelLabel =
-    ai_tier === "free" ? "Haiku 4.5" : ai_tier === "pro" ? "Sonnet 4.6" : "Opus 4.7";
+    ai_tier === "free" ? "Haiku 4.5" : ai_tier === "pro" ? "Sonnet 4.6" : "Opus 4.8";
   const estTokens = candidates.reduce((sum, c) => sum + Math.ceil(c.text.length * 1.5), 0);
 
   async function runBatch() {
@@ -144,6 +144,13 @@ export function BatchPrecodeDialog({
       if (confidenceFilter === "high") return level === "high";
       return level === "high" || level === "medium";
     };
+
+    // Stop early if too many consecutive failures (likely a config issue:
+    // missing API key, wrong model permission, etc.) — saves the user from
+    // waiting for 100 requests to all 403.
+    let consecutiveFailures = 0;
+    const FAIL_FAST_THRESHOLD = 3;
+    let abortReason: string | null = null;
 
     for (let i = 0; i < candidates.length; i++) {
       if (cancelRef.current) {
@@ -167,6 +174,7 @@ export function BatchPrecodeDialog({
           throw new Error(body.error ?? `HTTP ${res.status}`);
         }
         const data = (await res.json()) as AiResult;
+        consecutiveFailures = 0;
 
         const hasAny = data.suggested.length > 0;
         if (skipUncoded && !hasAny) {
@@ -194,14 +202,26 @@ export function BatchPrecodeDialog({
         }
         setCreated((n) => n + 1);
       } catch (err) {
-        setErrors((es) => [
-          ...es,
-          { candidate: c, message: err instanceof Error ? err.message : "未知錯誤" },
-        ]);
+        const msg = err instanceof Error ? err.message : "未知錯誤";
+        setErrors((es) => [...es, { candidate: c, message: msg }]);
+        consecutiveFailures += 1;
+        if (consecutiveFailures >= FAIL_FAST_THRESHOLD) {
+          abortReason = msg;
+          break;
+        }
       }
       setProgress(i + 1);
     }
 
+    if (abortReason) {
+      setErrors((es) => [
+        ...es,
+        {
+          candidate: { speaker: "", text: "", start: -1, end: -1 } as Candidate,
+          message: `連續 ${FAIL_FAST_THRESHOLD} 次失敗，已中止以節省 API 用量。最後錯誤：${abortReason}`,
+        },
+      ]);
+    }
     setPhase("done");
   }
 
@@ -337,11 +357,15 @@ export function BatchPrecodeDialog({
                   <summary className="cursor-pointer text-muted-foreground">
                     查看 {errors.length} 個錯誤
                   </summary>
-                  <ul className="mt-2 max-h-40 space-y-1 overflow-y-auto border border-border bg-muted/40 p-2">
+                  <ul className="mt-2 max-h-48 space-y-2 overflow-y-auto border border-border bg-muted/40 p-2">
                     {errors.slice(0, 20).map((e, i) => (
                       <li key={i} className="text-destructive">
-                        <span className="font-mono">{e.candidate.start}</span> ·{" "}
-                        {e.message}
+                        {e.candidate.start >= 0 && (
+                          <span className="mr-1.5 font-mono text-[10px] text-muted-foreground">
+                            位置 {e.candidate.start}
+                          </span>
+                        )}
+                        <span className="break-words">{e.message}</span>
                       </li>
                     ))}
                   </ul>

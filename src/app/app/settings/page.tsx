@@ -38,7 +38,7 @@ export default function SettingsPage() {
             [
               { id: "free", name: "Free 個人版", model: "Claude Haiku 4.5", price: "免費 50,000 字 / 月" },
               { id: "pro", name: "Academic Pro", model: "Claude Sonnet 4.6", price: "按量計費" },
-              { id: "institute", name: "機構版", model: "Claude Opus 4.7", price: "聯繫洽談" },
+              { id: "institute", name: "機構版", model: "Claude Opus 4.8", price: "聯繫洽談" },
             ] as const
           ).map((t) => (
             <label
@@ -58,6 +58,19 @@ export default function SettingsPage() {
               <Badge variant="outline">{t.price}</Badge>
             </label>
           ))}
+          <p className="pt-2 text-[11px] text-muted-foreground">
+            注意：Sonnet 與 Opus 模型需要 Anthropic 帳戶有對應方案的存取權限。
+            若收到 403「Request not allowed」錯誤，請改用 Haiku 4.5 或至{" "}
+            <a
+              href="https://console.anthropic.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-2 hover:text-foreground"
+            >
+              console.anthropic.com
+            </a>{" "}
+            升級方案。
+          </p>
         </CardContent>
       </Card>
 
