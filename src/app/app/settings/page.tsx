@@ -17,6 +17,7 @@ interface AiTestResult {
   ok: boolean;
   stage: string;
   message: string;
+  provider?: string;
   model?: string;
   reply?: string;
   status?: number;
@@ -40,6 +41,36 @@ export default function SettingsPage() {
     setTesting(true);
     setTestResult(null);
     try {
+      // Direct browser-to-Google route for Gemini (bypasses Vercel region lock)
+      if (aiProvider === "gemini" && aiApiKey) {
+        const { testDirectGemini } = await import("@/lib/ai/client-direct");
+        try {
+          const { reply } = await testDirectGemini({
+            api_key: aiApiKey,
+            model: aiModel || "gemini-2.5-flash",
+          });
+          setTestResult({
+            ok: true,
+            stage: "success",
+            message: "AI 連線正常（直接從你的瀏覽器呼叫 Google，繞過 Strata 後端）",
+            provider: "gemini",
+            model: aiModel || "gemini-2.5-flash",
+            reply: reply.slice(0, 50),
+            key_prefix: aiApiKey.slice(0, 12) + "…",
+          });
+        } catch (err) {
+          setTestResult({
+            ok: false,
+            stage: "unknown",
+            message: err instanceof Error ? err.message : "未知錯誤",
+            provider: "gemini",
+            model: aiModel || "gemini-2.5-flash",
+            key_prefix: aiApiKey.slice(0, 12) + "…",
+          });
+        }
+        return;
+      }
+
       const res = await fetch("/api/ai/test", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -244,7 +275,11 @@ function AiProviderCard() {
       consoleUrl: "https://aistudio.google.com/apikey",
       consoleLabel: "aistudio.google.com",
       keyHint: "AIza…",
-      note: null,
+      note:
+        "Gemini 會直接從你的瀏覽器呼叫 Google（繞過 Strata 後端），" +
+        "因為 Strata 部署在 Vercel Hobby 的香港節點，而 Google 不支援香港 IP。" +
+        "你的瀏覽器在台灣 → Google 允許。優點：低延遲、隱私（key 不經 Strata）。" +
+        "必須貼自己的 API key 才能運作。",
     },
     {
       id: "taide" as const,

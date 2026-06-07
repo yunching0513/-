@@ -29,6 +29,7 @@ import {
   useActiveDocument,
   useActiveSegments,
 } from "@/lib/store/strata";
+import { callAiSuggest } from "@/lib/ai/call-suggest";
 import type { Codebook, CodedSegment } from "@/lib/codebook/types";
 import { cn } from "@/lib/utils";
 
@@ -854,6 +855,7 @@ function AiSuggestSection({
   const ai_provider = useStrata((s) => s.ai_provider);
   const ai_api_key = useStrata((s) => s.ai_api_key);
   const ai_model = useStrata((s) => s.ai_model);
+  const user_codebooks = useStrata((s) => s.userCodebooks);
 
   const [status, setStatus] = useState<"idle" | "loading" | "ok" | "error">("idle");
   const [result, setResult] = useState<AiResult | null>(null);
@@ -863,24 +865,15 @@ function AiSuggestSection({
     setStatus("loading");
     setError(null);
     try {
-      const res = await fetch("/api/ai/suggest", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          text: segment.text,
-          speaker: segment.speaker,
-          codebook_id: codebook.codebook_id,
-          provider: ai_provider,
-          model: ai_model || undefined,
-          api_key: ai_api_key || undefined,
-          tier: ai_tier,
-        }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error ?? `HTTP ${res.status}`);
-      }
-      const data = (await res.json()) as AiResult;
+      const data = (await callAiSuggest({
+        text: segment.text,
+        speaker: segment.speaker,
+        codebook_id: codebook.codebook_id,
+        provider: ai_provider,
+        model: ai_model || undefined,
+        api_key: ai_api_key || undefined,
+        user_codebooks: user_codebooks,
+      })) as AiResult;
       setResult(data);
       setStatus("ok");
     } catch (e) {
