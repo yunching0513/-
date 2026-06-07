@@ -182,18 +182,18 @@ export function translateError(
     );
   }
   if (status === 403 || /forbidden|not allowed|permission/i.test(raw)) {
-    const isNewClaude = /claude-(haiku-4|sonnet-4|opus-4)/i.test(model);
     const hint =
-      provider === "anthropic" && isNewClaude
-        ? "\n\n常見解法：去「設定」把模型改為「Claude 3.5 Haiku（最廣相容）」— " +
-          "這個版本舊但便宜，幾乎所有 Anthropic 帳戶都能用。"
-        : provider === "anthropic"
-          ? "\n\n建議：去 console.anthropic.com 確認帳戶已驗證（含信用卡），且 workspace 有此模型存取權。"
-          : "\n\n建議改用該供應商的「預設小模型」或檢查帳戶設定。";
+      provider === "anthropic"
+        ? "\n\n常見原因（依機率排序）：" +
+          "\n  1. 帳戶未加信用卡 — Anthropic 即使 Free tier 也要綁卡才能呼叫 API" +
+          "\n  2. 免費 credits 已用完 — 到 console.anthropic.com → Plans 看餘額" +
+          "\n  3. Workspace 限制了模型存取" +
+          "\n\n如不想處理 Anthropic 帳號，到「設定」改用：" +
+          "\n  • Gemini（aistudio.google.com/apikey 5 秒申請，每日 1500 次免費，不需綁卡）" +
+          "\n  • TAIDE（學術免費，需 NCHC iService 帳號）"
+        : "\n\n建議改用該供應商的「推薦」小模型，或檢查帳戶設定。";
     return new Error(
-      `${providerName} 拒絕請求（403）— 你的 key 沒有權限使用 ${model}。可能原因：` +
-        `(a) 帳戶尚未驗證；(b) workspace 限制了模型存取；(c) 該模型較新、key 未授權。` +
-        hint,
+      `${providerName} 拒絕請求（403）— 你的 key 沒有權限使用 ${model}。${hint}`,
     );
   }
   if (status === 429 || /rate.*limit/i.test(raw)) {
