@@ -10,6 +10,12 @@ out
 build
 dist
 
+# Tauri
+src-tauri/target
+src-tauri/Cargo.lock
+src-tauri/gen
+src/app/_api_disabled_for_tauri
+
 # misc
 .DS_Store
 *.pem

@@ -1,0 +1,44 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "Strata",
+  "version": "0.1.0",
+  "identifier": "tw.strata.app",
+  "build": {
+    "frontendDist": "../out",
+    "devUrl": "http://localhost:3000",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build:tauri"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Strata 層次分析",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 960,
+        "minHeight": 640,
+        "resizable": true,
+        "fullscreen": false,
+        "decorations": true,
+        "transparent": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "category": "Productivity",
+    "shortDescription": "質性編碼研究平台 — 雙層編碼簿 × AI 輔助標註 × 匯出 ATLAS.ti",
+    "longDescription": "Strata 層次分析是為公聽會、聽證會、立委質詢等質性研究文本打造的編碼平台。內建程序正義 × 行為經濟學雙層編碼簿，支援 AI 結構化建議（Anthropic / OpenAI / Gemini / TAIDE），可匯出 Excel 與 ATLAS.ti REFI-QDA 格式。所有研究資料儲存於本機。",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}

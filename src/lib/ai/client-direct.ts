@@ -1,19 +1,18 @@
 "use client";
 
-import { GoogleGenAI } from "@google/genai";
 import { BUILTIN_CODEBOOKS } from "../codebook/builtin";
 import type { Codebook } from "../codebook/types";
 
 /**
- * Client-direct Gemini calls. Bypasses Strata's backend entirely so we sidestep
- * the Vercel Hobby region lock (Hong Kong, which Google AI Studio blocks).
- * The user's browser sits in their actual location (Taiwan, US, etc.) which
- * Google permits.
+ * Client-direct AI calls — bypass Strata's backend entirely. Three reasons:
+ *   (1) Vercel Hobby region lock (Hong Kong → Google blocks Gemini)
+ *   (2) Privacy: user's BYO API key never touches Strata server
+ *   (3) Tauri desktop app: no server at all, must call provider APIs directly
  *
- * Trade-off: the user's BYO API key sits in their browser's memory and is sent
- * directly to Google. The Strata server never sees it. This is actually a
- * privacy win — but the key is visible in DevTools network panel.
+ * Supports all four providers. Each uses its own auth scheme and SDK quirk.
  */
+
+export type Provider = "anthropic" | "openai" | "gemini" | "taide";
 
 export interface SuggestionResult {
   reasoning: string[];
@@ -24,26 +23,19 @@ export interface SuggestionResult {
   confidence: "high" | "medium" | "low";
 }
 
-/**
- * Should we route AI calls through the user's browser directly?
- * True only when the user is using Gemini with their own key.
- */
 export function shouldRouteDirect(
   provider: string | undefined,
   apiKey: string | undefined,
 ): boolean {
-  return provider === "gemini" && !!apiKey;
+  return !!provider && !!apiKey;
 }
 
-/**
- * Direct Gemini call from the browser. Same interface as server-side
- * /api/ai/suggest so the calling code only needs to switch entry points.
- */
-export async function suggestDirectGemini(args: {
+export async function suggestDirect(args: {
   text: string;
   speaker?: string;
   codebook_id: string;
   user_codebooks?: Codebook[];
+  provider: Provider;
   model: string;
   api_key: string;
 }): Promise<SuggestionResult> {
@@ -52,49 +44,145 @@ export async function suggestDirectGemini(args: {
     args.user_codebooks?.find((c) => c.codebook_id === args.codebook_id);
   if (!cb) throw new Error(`Codebook not found: ${args.codebook_id}`);
 
-  const ai = new GoogleGenAI({ apiKey: args.api_key });
   const system = buildSystemPrompt(cb);
   const user = buildUserPrompt(args.text, args.speaker);
 
-  let raw: string;
-  try {
-    const res = await ai.models.generateContent({
-      model: args.model || "gemini-2.5-flash",
-      contents: user,
-      config: { systemInstruction: system, maxOutputTokens: 1024 },
-    });
-    raw = res.text ?? "";
-  } catch (err) {
-    throw translateGeminiError(err);
-  }
+  const raw = await complete({
+    provider: args.provider,
+    api_key: args.api_key,
+    model: args.model,
+    system,
+    user,
+    max_tokens: 1024,
+  });
 
   return extractJson(raw) as SuggestionResult;
 }
 
-/**
- * A minimal ping-style call used by the settings page connection test.
- */
-export async function testDirectGemini(args: {
+export async function testDirect(args: {
+  provider: Provider;
   api_key: string;
   model: string;
 }): Promise<{ reply: string }> {
-  const ai = new GoogleGenAI({ apiKey: args.api_key });
+  const reply = await complete({
+    provider: args.provider,
+    api_key: args.api_key,
+    model: args.model,
+    system: "Reply with a single word: pong",
+    user: "ping",
+    max_tokens: 16,
+  });
+  return { reply };
+}
+
+/* ----- Provider dispatch ----- */
+
+interface CompleteArgs {
+  provider: Provider;
+  api_key: string;
+  model: string;
+  system: string;
+  user: string;
+  max_tokens: number;
+}
+
+async function complete(args: CompleteArgs): Promise<string> {
   try {
-    const res = await ai.models.generateContent({
-      model: args.model || "gemini-2.5-flash",
-      contents: "ping",
-      config: {
-        systemInstruction: "Reply with a single word: pong",
-        maxOutputTokens: 16,
-      },
-    });
-    return { reply: res.text ?? "" };
+    switch (args.provider) {
+      case "anthropic":
+        return await callAnthropic(args);
+      case "openai":
+        return await callOpenAI(args);
+      case "gemini":
+        return await callGemini(args);
+      case "taide":
+        return await callTaide(args);
+    }
   } catch (err) {
-    throw translateGeminiError(err);
+    throw translateError(err, args.provider, args.model);
   }
 }
 
-/* ----- shared prompt builders ----- */
+async function callAnthropic(args: CompleteArgs): Promise<string> {
+  // Anthropic SDK supports browser if dangerouslyAllowBrowser: true + dangerous-direct-browser-access header
+  const { default: Anthropic } = await import("@anthropic-ai/sdk");
+  const client = new Anthropic({
+    apiKey: args.api_key,
+    dangerouslyAllowBrowser: true,
+    defaultHeaders: { "anthropic-dangerous-direct-browser-access": "true" },
+  });
+  const res = await client.messages.create({
+    model: args.model,
+    max_tokens: args.max_tokens,
+    system: args.system,
+    messages: [{ role: "user", content: args.user }],
+  });
+  const block = res.content.find((c) => c.type === "text");
+  return block && "text" in block ? block.text : "";
+}
+
+async function callOpenAI(args: CompleteArgs): Promise<string> {
+  const { default: OpenAI } = await import("openai");
+  const client = new OpenAI({ apiKey: args.api_key, dangerouslyAllowBrowser: true });
+  const res = await client.chat.completions.create({
+    model: args.model,
+    max_completion_tokens: args.max_tokens,
+    messages: [
+      { role: "system", content: args.system },
+      { role: "user", content: args.user },
+    ],
+  });
+  return res.choices[0]?.message?.content ?? "";
+}
+
+async function callGemini(args: CompleteArgs): Promise<string> {
+  const { GoogleGenAI } = await import("@google/genai");
+  const ai = new GoogleGenAI({ apiKey: args.api_key });
+  const res = await ai.models.generateContent({
+    model: args.model,
+    contents: args.user,
+    config: {
+      systemInstruction: args.system,
+      maxOutputTokens: args.max_tokens,
+    },
+  });
+  return res.text ?? "";
+}
+
+async function callTaide(args: CompleteArgs): Promise<string> {
+  // TAIDE via NCHC — OpenAI-compatible REST with x-api-key header.
+  // Hand-roll the fetch (SDK doesn't allow custom auth header).
+  const res = await fetch(
+    "https://portal.genai.nchc.org.tw/api/v1/chat/completions",
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": args.api_key,
+      },
+      body: JSON.stringify({
+        model: args.model,
+        messages: [
+          { role: "system", content: args.system },
+          { role: "user", content: args.user },
+        ],
+        max_tokens: args.max_tokens,
+      }),
+    },
+  );
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    const err = new Error(`HTTP ${res.status} ${body}`) as Error & { status?: number };
+    err.status = res.status;
+    throw err;
+  }
+  const data = (await res.json()) as {
+    choices?: { message?: { content?: string } }[];
+  };
+  return data.choices?.[0]?.message?.content ?? "";
+}
+
+/* ----- prompt building & utilities ----- */
 
 function buildSystemPrompt(cb: Codebook): string {
   const axes = cb.axes
@@ -147,23 +235,40 @@ function extractJson(s: string): unknown {
   return JSON.parse(s.slice(start, end + 1));
 }
 
-function translateGeminiError(err: unknown): Error {
+function translateError(err: unknown, provider: Provider, model: string): Error {
+  const status =
+    err && typeof err === "object" && "status" in err
+      ? Number((err as { status: unknown }).status)
+      : null;
   const raw = err instanceof Error ? err.message : String(err);
-  if (/API key not valid|API_KEY_INVALID/i.test(raw)) {
-    return new Error("Gemini API key 無效。請至 aistudio.google.com/apikey 確認。");
+  const name =
+    provider === "anthropic"
+      ? "Anthropic"
+      : provider === "openai"
+        ? "OpenAI"
+        : provider === "gemini"
+          ? "Google Gemini"
+          : "TAIDE";
+
+  if (status === 401 || /unauthor|invalid.*key|API_KEY_INVALID|API Key 驗證失敗/i.test(raw)) {
+    return new Error(`${name} API key 無效。請至供應商 console 確認。`);
   }
-  if (/User location is not supported/i.test(raw)) {
+  if (status === 402 || /insufficient.*quota|billing|RESOURCE_EXHAUSTED/i.test(raw)) {
+    return new Error(`${name} 額度不足或未設定付款。請至供應商 console 加值。`);
+  }
+  if (status === 403 || /forbidden|not allowed|permission|User location|PERMISSION_DENIED/i.test(raw)) {
     return new Error(
-      "Gemini 拒絕：「User location is not supported」。" +
-        "由於你已透過瀏覽器直接呼叫，這代表你的 Google 帳號／瀏覽器所在地區不支援 Gemini API。" +
-        "請確認 Google 帳號區域、或改用 Anthropic / TAIDE。",
+      `${name} 拒絕請求（403）— ${model} 沒權限或地區受限。請改用該供應商「推薦」的小模型，或檢查帳戶設定。`,
     );
   }
-  if (/quota|RESOURCE_EXHAUSTED/i.test(raw)) {
-    return new Error("Gemini 配額已用完（每日 1500 次免費額度）。請明天再試或升級。");
+  if (status === 429 || /rate.*limit/i.test(raw)) {
+    return new Error(`${name} 速率限制（429）。請稍候 30-60 秒重試。`);
   }
-  if (/PERMISSION_DENIED/i.test(raw)) {
-    return new Error("Gemini 權限不足。請確認 API key 已啟用 Generative Language API。");
+  if (status === 529 || /overload/i.test(raw)) {
+    return new Error(`${name} 服務暫時過載。請稍後重試。`);
   }
-  return new Error(`Gemini 呼叫失敗：${raw}`);
+  if (status && status >= 500) {
+    return new Error(`${name} 伺服器錯誤（${status}）。請稍後重試。`);
+  }
+  return new Error(`${name} 呼叫失敗：${raw}`);
 }

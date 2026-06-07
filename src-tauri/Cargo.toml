@@ -1,0 +1,26 @@
+[package]
+name = "strata"
+version = "0.1.0"
+description = "Strata 層次分析 — 質性編碼研究平台"
+authors = ["吳昀慶 Yun Ching Wu <https://www.linkedin.com/in/yunching0513/>"]
+license = "AGPL-3.0"
+repository = "https://github.com/yunching0513/-"
+edition = "2021"
+rust-version = "1.77.2"
+
+[lib]
+name = "strata_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.6.2" }
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+log = "0.4"
+tauri = { version = "2.11.2" }
+tauri-plugin-log = "2"
+tauri-plugin-http = "2"
+tauri-plugin-fs = "2"
+tauri-plugin-dialog = "2"

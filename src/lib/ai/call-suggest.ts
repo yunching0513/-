@@ -1,6 +1,6 @@
 "use client";
 
-import { suggestDirectGemini, shouldRouteDirect } from "./client-direct";
+import { suggestDirect, shouldRouteDirect, type Provider } from "./client-direct";
 import type { Codebook } from "../codebook/types";
 
 export interface SuggestArgs {
@@ -8,7 +8,7 @@ export interface SuggestArgs {
   speaker?: string;
   codebook_id: string;
   user_codebooks?: Codebook[];
-  provider?: "anthropic" | "openai" | "gemini" | "taide";
+  provider?: Provider;
   model?: string;
   api_key?: string;
 }
@@ -23,18 +23,22 @@ export interface SuggestResult {
 }
 
 /**
- * Unified AI suggestion call. Routes Gemini (with BYO key) through the user's
- * browser to bypass Vercel Hobby's region lock; everything else goes through
- * the /api/ai/suggest server endpoint as usual.
+ * Unified AI suggestion call. When the user has a BYO API key, route directly
+ * from their browser to the provider — bypassing Strata's backend entirely
+ * (better privacy + no Vercel region issues + Tauri-ready).
+ *
+ * Falls back to /api/ai/suggest only when no BYO key is set, so the deployer's
+ * env var key can serve casual visitors who haven't pasted their own.
  */
 export async function callAiSuggest(args: SuggestArgs): Promise<SuggestResult> {
-  if (shouldRouteDirect(args.provider, args.api_key)) {
-    return suggestDirectGemini({
+  if (shouldRouteDirect(args.provider, args.api_key) && args.provider) {
+    return suggestDirect({
       text: args.text,
       speaker: args.speaker,
       codebook_id: args.codebook_id,
       user_codebooks: args.user_codebooks,
-      model: args.model ?? "gemini-2.5-flash",
+      provider: args.provider,
+      model: args.model ?? defaultModelFor(args.provider),
       api_key: args.api_key!,
     });
   }
@@ -56,4 +60,14 @@ export async function callAiSuggest(args: SuggestArgs): Promise<SuggestResult> {
     throw new Error(body.error ?? `HTTP ${res.status}`);
   }
   return (await res.json()) as SuggestResult;
+}
+
+function defaultModelFor(provider: Provider): string {
+  return provider === "anthropic"
+    ? "claude-3-5-haiku-20241022"
+    : provider === "openai"
+      ? "gpt-4o-mini"
+      : provider === "gemini"
+        ? "gemini-2.5-flash"
+        : "Llama3-TAIDE-LX-8B-Chat-Alpha1";
 }

@@ -1,0 +1,26 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Strata desktop permissions: HTTP for AI provider calls + public sources, file dialog + read for document uploads",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    {
+      "identifier": "http:default",
+      "allow": [
+        { "url": "https://api.anthropic.com/*" },
+        { "url": "https://api.openai.com/*" },
+        { "url": "https://generativelanguage.googleapis.com/*" },
+        { "url": "https://portal.genai.nchc.org.tw/*" },
+        { "url": "https://join.gov.tw/*" },
+        { "url": "https://v2.ly.govapi.tw/*" },
+        { "url": "https://ly.govapi.tw/*" }
+      ]
+    },
+    "dialog:default",
+    "dialog:allow-open",
+    "fs:default",
+    "fs:allow-read-text-file",
+    "fs:allow-read-file"
+  ]
+}
