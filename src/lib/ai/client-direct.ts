@@ -257,8 +257,18 @@ function translateError(err: unknown, provider: Provider, model: string): Error 
     return new Error(`${name} 額度不足或未設定付款。請至供應商 console 加值。`);
   }
   if (status === 403 || /forbidden|not allowed|permission|User location|PERMISSION_DENIED/i.test(raw)) {
+    const isAnthropic = provider === "anthropic";
+    const hint = isAnthropic
+      ? "\n\n常見原因（依機率排序）：" +
+        "\n  1. 帳戶未加信用卡 — Anthropic 即使 Free tier 也要綁卡才能呼叫 API，credits 用完更會 403" +
+        "\n  2. 免費 credits 已用完 — 到 console.anthropic.com → Plans 看餘額" +
+        "\n  3. Workspace 限制了模型存取 — 換 default workspace 的 key 試試" +
+        "\n\n如不想處理 Anthropic 帳號，建議改用：" +
+        "\n  • Gemini（aistudio.google.com/apikey 5 秒申請，每日 1500 次免費，不需綁卡）" +
+        "\n  • TAIDE（學術免費，但需 NCHC iService 帳號）"
+      : `\n\n建議改用該供應商的「推薦」小模型，或檢查帳戶設定。`;
     return new Error(
-      `${name} 拒絕請求（403）— ${model} 沒權限或地區受限。請改用該供應商「推薦」的小模型，或檢查帳戶設定。`,
+      `${name} 拒絕請求（403）— ${model} 沒權限或地區受限。${hint}`,
     );
   }
   if (status === 429 || /rate.*limit/i.test(raw)) {
