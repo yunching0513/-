@@ -28,8 +28,6 @@ export default function SettingsPage() {
   const segments = useActiveSegments();
   const document = useActiveDocument();
   const cb = useActiveCodebook();
-  const aiTier = useStrata((s) => s.ai_tier);
-  const setAiTier = useStrata((s) => s.setAiTier);
 
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<AiTestResult | null>(null);
@@ -76,40 +74,6 @@ export default function SettingsPage() {
 
       <AiProviderCard />
 
-      {/* Legacy tier — only shown for users without BYO key, as informational */}
-      <Card className="opacity-70">
-        <CardHeader>
-          <CardTitle className="text-base">伺服器代管模型分層（legacy）</CardTitle>
-          <CardDescription>
-            若你不提供 API key，平台會用部署者預設的 Anthropic key（受限於部署者方案）
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {(
-            [
-              { id: "free", name: "Free 個人版", model: "Claude Haiku 4.5" },
-              { id: "pro", name: "Academic Pro", model: "Claude Sonnet 4.6" },
-              { id: "institute", name: "機構版", model: "Claude Opus 4.8" },
-            ] as const
-          ).map((t) => (
-            <label
-              key={t.id}
-              className="flex items-center gap-3 rounded-sm border border-border p-3 hover:bg-muted/40"
-            >
-              <input
-                type="radio"
-                name="tier"
-                checked={aiTier === t.id}
-                onChange={() => setAiTier(t.id)}
-              />
-              <div className="flex-1">
-                <div className="text-sm font-medium">{t.name}</div>
-                <div className="text-xs text-muted-foreground">{t.model}</div>
-              </div>
-            </label>
-          ))}
-        </CardContent>
-      </Card>
 
       <Card>
         <CardHeader>
@@ -194,14 +158,14 @@ export default function SettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">本月 AI 用量</CardTitle>
-          <CardDescription>累積消耗與餘額</CardDescription>
+          <CardDescription>
+            用量由各 AI 供應商自行計帳，請至該供應商 console 查詢
+          </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-2 text-sm">
-          <Row label="輸入字元" value="—" />
-          <Row label="輸出字元" value="—" />
-          <Row label="本月費用" value="NT$ 0" />
-          <p className="pt-1 text-xs text-muted-foreground">
-            尚未啟用 AI；在 .env.local 填入 ANTHROPIC_API_KEY 後可使用。
+        <CardContent className="text-xs text-muted-foreground">
+          <p>
+            Strata 本身不對 AI 使用收費。費用直接記在你在 settings 設定的供應商
+            帳戶下（Anthropic / OpenAI / Gemini Free tier 通常零費用，TAIDE 學術免費）。
           </p>
         </CardContent>
       </Card>
@@ -436,11 +400,3 @@ function stageLabel(stage: string): string {
   }
 }
 
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-mono">{value}</span>
-    </div>
-  );
-}

@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "regions": ["hkg1"],
+  "regions": ["nrt1"],
   "functions": {
     "src/app/api/parse/route.ts": {
       "maxDuration": 60
