@@ -22,11 +22,10 @@ export const MODELS: Record<Provider, ProviderModel[]> = {
   anthropic: [
     {
       provider: "anthropic",
-      label: "Claude 3.5 Haiku（最廣相容）",
-      id: "claude-3-5-haiku-20241022",
+      label: "Claude Haiku 4.5",
+      id: "claude-haiku-4-5-20251001",
       default: true,
     },
-    { provider: "anthropic", label: "Claude Haiku 4.5（新版）", id: "claude-haiku-4-5-20251001" },
     { provider: "anthropic", label: "Claude Sonnet 4.6", id: "claude-sonnet-4-6" },
     { provider: "anthropic", label: "Claude Opus 4.8", id: "claude-opus-4-8" },
   ],

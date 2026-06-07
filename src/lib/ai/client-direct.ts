@@ -253,6 +253,12 @@ function translateError(err: unknown, provider: Provider, model: string): Error 
   if (status === 401 || /unauthor|invalid.*key|API_KEY_INVALID|API Key 驗證失敗/i.test(raw)) {
     return new Error(`${name} API key 無效。請至供應商 console 確認。`);
   }
+  if (status === 404 || /not_found_error|not found.*model|NOT_FOUND/i.test(raw)) {
+    return new Error(
+      `${name} 找不到模型 "${model}"。可能該模型已被淘汰或在你的 key/帳戶不可用。` +
+        `請至「設定」改選別的模型（推薦預設模型）。`,
+    );
+  }
   if (status === 402 || /insufficient.*quota|billing|RESOURCE_EXHAUSTED/i.test(raw)) {
     return new Error(`${name} 額度不足或未設定付款。請至供應商 console 加值。`);
   }

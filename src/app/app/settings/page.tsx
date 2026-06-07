@@ -46,7 +46,7 @@ export default function SettingsPage() {
       if (aiApiKey) {
         const { testDirect } = await import("@/lib/ai/client-direct");
         const defaults: Record<string, string> = {
-          anthropic: "claude-3-5-haiku-20241022",
+          anthropic: "claude-haiku-4-5-20251001",
           openai: "gpt-4o-mini",
           gemini: "gemini-2.5-flash",
           taide: "Llama3-TAIDE-LX-8B-Chat-Alpha1",
