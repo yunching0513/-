@@ -246,6 +246,18 @@ export default function HelpPage() {
           </CardContent>
         </Card>
       </section>
+
+      <footer className="border-t border-border pt-6 text-xs text-muted-foreground">
+        <span>開發者：</span>
+        <a
+          href="https://www.linkedin.com/in/yunching0513/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-foreground underline-offset-2 hover:underline"
+        >
+          吳昀慶 Yun Ching Wu
+        </a>
+      </footer>
     </div>
   );
 }

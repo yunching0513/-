@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Strata 層析 — 質性編碼研究平台",
+  title: "Strata 層次分析 — 質性編碼研究平台",
   description:
     "為公聽會、聽證會等質性研究文本提供雙層編碼、AI 輔助標註、視覺化與 ATLAS.ti 匯出。",
   applicationName: "Strata",

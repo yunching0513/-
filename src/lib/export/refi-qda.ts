@@ -101,7 +101,7 @@ ${codeBookXml}
 ${codingsXml}
     </TextSource>
   </Sources>
-  <Description>Exported from Strata 層析. Codebook: ${esc(codebook.name)} v${codebook.version}.</Description>
+  <Description>Exported from Strata 層次分析. Codebook: ${esc(codebook.name)} v${codebook.version}.</Description>
 </Project>
 `;
 }

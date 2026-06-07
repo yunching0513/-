@@ -1,4 +1,4 @@
-# Strata 層析
+# Strata 層次分析
 
 > 為公聽會、聽證會等質性研究文本提供雙層編碼、AI 輔助標註、視覺化與 ATLAS.ti 匯出的編碼研究平台。
 
@@ -23,7 +23,7 @@ Strata 不是傳統的標籤工具。它把質性研究真實的工作流程作�
   - Excel `.xlsx`（多 sheet：Segments / Codebook / Patterns）
   - REFI-QDA `.qdpx`（與 ATLAS.ti、NVivo、MAXQDA 互通）
 - **PDF / Word 智慧解析** — 自動識別發言者、保留位置資訊
-- **設計：簡潔、明亮、科技感** — Tailwind + 自訂層析配色（surface/deep/hybrid）
+- **設計：簡潔、明亮、科技感** — Tailwind + 自訂層次分析配色（surface/deep/hybrid）
 
 ---
 
@@ -167,3 +167,10 @@ Strata 為開源專案。授權條款待定（候選：AGPL-3.0、Elastic Licens
 - Tversky, A. & Kahneman, D. (1974, 1981); Kahneman & Tversky (1979).
 - Lord, C. G., Ross, L., & Lepper, M. R. (1979).
 - Thaler, R. (1980, 1985).
+
+---
+
+## 開發者
+
+**吳昀慶（Yun Ching Wu）**
+[LinkedIn ›](https://www.linkedin.com/in/yunching0513/)

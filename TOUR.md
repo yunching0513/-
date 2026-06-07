@@ -227,3 +227,10 @@ A: Vercel Hobby 方案有 4.5MB 請求體上限。先用 OCR 工具轉純文字�
 5. **回報問題**：碰到任何 bug / 想法請開 GitHub Issue（或直接告訴開發者）
 
 — 預祝研究順利
+
+---
+
+## 開發者
+
+**吳昀慶（Yun Ching Wu）**
+[LinkedIn ›](https://www.linkedin.com/in/yunching0513/)

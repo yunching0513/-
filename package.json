@@ -2,7 +2,11 @@
   "name": "strata",
   "version": "0.1.0",
   "private": true,
-  "description": "Strata 層析 — 質性編碼研究平台",
+  "description": "Strata 層次分析 — 質性編碼研究平台",
+  "author": {
+    "name": "吳昀慶 Yun Ching Wu",
+    "url": "https://www.linkedin.com/in/yunching0513/"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",

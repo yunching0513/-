@@ -216,7 +216,21 @@ export default function HomePage() {
       <footer>
         <div className="container mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-10 text-sm text-muted-foreground">
           <Wordmark />
-          <span className="text-xs">© 2026 Strata · 質性編碼研究平台</span>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+            <span>
+              開發者：
+              <a
+                href="https://www.linkedin.com/in/yunching0513/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-foreground underline-offset-2 hover:underline"
+              >
+                吳昀慶 Yun Ching Wu
+              </a>
+            </span>
+            <span className="text-muted-foreground/60">·</span>
+            <span>© 2026 Strata · 質性編碼研究平台</span>
+          </div>
         </div>
       </footer>
     </main>
