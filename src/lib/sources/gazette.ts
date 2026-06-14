@@ -128,18 +128,46 @@ export async function searchAgendas(opts: SearchOptions): Promise<SearchResult> 
 /**
  * 取單一議程的完整逐字稿純文字。
  * 逐字稿可能很大（數萬至十萬字）；呼叫端應節制。
+ *
+ * 自動重試一次處理短暫的上游錯誤（ly.govapi.tw 偶有 500，多半是
+ * 該份公報尚未處理完或 PDF 解析失敗）。
  */
 export async function getAgendaText(agendaId: string): Promise<string> {
   const url = `${BASE}/gazette_agenda_doc/${encodeURIComponent(agendaId)}/txt`;
-  const res = await fetch(url, {
-    headers: { "User-Agent": USER_AGENT, Accept: "text/plain" },
-    signal: AbortSignal.timeout(60_000),
-    next: { revalidate: 60 * 60 * 24 },
-  });
-  if (!res.ok) {
-    throw new Error(`取得逐字稿失敗 (HTTP ${res.status})`);
+  const attempts = 2;
+  let lastStatus = 0;
+  for (let i = 0; i < attempts; i++) {
+    const res = await fetch(url, {
+      headers: { "User-Agent": USER_AGENT, Accept: "text/plain" },
+      signal: AbortSignal.timeout(60_000),
+      next: { revalidate: 60 * 60 * 24 },
+    });
+    if (res.ok) {
+      return await res.text();
+    }
+    lastStatus = res.status;
+    // Retry only on transient errors; 404 means truly absent
+    if (res.status === 404) break;
+    if (i + 1 < attempts) {
+      await new Promise((r) => setTimeout(r, 800));
+    }
   }
-  return await res.text();
+  throw friendlyAgendaError(agendaId, lastStatus);
+}
+
+function friendlyAgendaError(agendaId: string, status: number): Error {
+  if (status === 404) {
+    return new Error(
+      `公報議程 ${agendaId} 在 ly.govapi.tw 找不到 — 可能該篇尚未匯入或編號錯誤`,
+    );
+  }
+  if (status >= 500) {
+    return new Error(
+      `公報議程 ${agendaId} 上游解析失敗（${status}）— ` +
+        `ly.govapi.tw 對該份公報的 PDF 還沒處理完，或解析時出錯。請改選別篇試試，或稍後重來`,
+    );
+  }
+  return new Error(`公報議程 ${agendaId} 取得失敗（HTTP ${status}）`);
 }
 
 /**
