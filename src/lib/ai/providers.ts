@@ -27,6 +27,7 @@ export const MODELS: Record<Provider, ProviderModel[]> = {
       default: true,
     },
     { provider: "anthropic", label: "Claude Sonnet 4.6", id: "claude-sonnet-4-6" },
+    { provider: "anthropic", label: "Claude Sonnet 5", id: "claude-sonnet-5" },
     { provider: "anthropic", label: "Claude Opus 4.8", id: "claude-opus-4-8" },
   ],
   openai: [
@@ -181,19 +182,14 @@ export function translateError(
       `${providerName} 帳戶餘額不足或未設定付款方式。請至該供應商 console 加入信用卡或購買 credits。`,
     );
   }
-  if (status === 403 || /forbidden|not allowed|permission/i.test(raw)) {
-    const hint =
-      provider === "anthropic"
-        ? "\n\n常見原因（依機率排序）：" +
-          "\n  1. 帳戶未加信用卡 — Anthropic 即使 Free tier 也要綁卡才能呼叫 API" +
-          "\n  2. 免費 credits 已用完 — 到 console.anthropic.com → Plans 看餘額" +
-          "\n  3. Workspace 限制了模型存取" +
-          "\n\n如不想處理 Anthropic 帳號，到「設定」改用：" +
-          "\n  • Gemini（aistudio.google.com/apikey 5 秒申請，每日 1500 次免費，不需綁卡）" +
-          "\n  • TAIDE（學術免費，需 NCHC iService 帳號）"
-        : "\n\n建議改用該供應商的「推薦」小模型，或檢查帳戶設定。";
+  if (status === 403 || /forbidden|not allowed|permission|User location/i.test(raw)) {
+    // 已確認的根因：Strata 伺服器（Vercel Hobby）位於香港節點，
+    // Anthropic 與 Google 均封鎖香港 IP 的推理請求。key 本身通常沒問題。
     return new Error(
-      `${providerName} 拒絕請求（403）— 你的 key 沒有權限使用 ${model}。${hint}`,
+      `${providerName} 拒絕了來自 Strata 伺服器的請求（伺服器位於香港，` +
+        `${providerName} 封鎖該地區的 API 呼叫）。你的 key 本身可能完全正常。` +
+        `\n\n解法：到「設定」貼上你自己的 API key — Strata 會改從你的瀏覽器直接呼叫` +
+        `${providerName}（你的所在地區不受限制），完全繞過伺服器。`,
     );
   }
   if (status === 429 || /rate.*limit/i.test(raw)) {

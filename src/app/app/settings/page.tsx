@@ -254,12 +254,17 @@ function AiProviderCard() {
       models: [
         { id: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5（推薦）" },
         { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6" },
+        { id: "claude-sonnet-5", label: "Claude Sonnet 5" },
         { id: "claude-opus-4-8", label: "Claude Opus 4.8" },
       ],
       consoleUrl: "https://console.anthropic.com",
       consoleLabel: "console.anthropic.com",
       keyHint: "sk-ant-…",
-      note: null as string | null,
+      note:
+        "貼 key 後會直接從你的瀏覽器呼叫 Anthropic（不經 Strata 後端）。" +
+        "務必貼自己的 key — Strata 伺服器位於香港，Anthropic 封鎖該地區的呼叫。" as
+        | string
+        | null,
     },
     {
       id: "openai" as const,
