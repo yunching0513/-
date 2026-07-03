@@ -53,7 +53,7 @@ export async function suggestDirect(args: {
     model: args.model,
     system,
     user,
-    max_tokens: 1024,
+    max_tokens: 2500,
   });
 
   return extractJson(raw) as SuggestionResult;
