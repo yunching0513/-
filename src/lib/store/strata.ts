@@ -48,6 +48,8 @@ interface State {
   ai_model: string;
   /** Set to true once user finishes the onboarding flow (or skips). */
   onboarding_complete: boolean;
+  /** Set to true once the coding-workspace coach tour finished (or skipped). */
+  tutorial_done: boolean;
 }
 
 interface Actions {
@@ -76,6 +78,7 @@ interface Actions {
   setAiApiKey: (key: string) => void;
   setAiModel: (model: string) => void;
   setOnboardingComplete: (done: boolean) => void;
+  setTutorialDone: (done: boolean) => void;
   /** Clear all sample documents + their segments, keeping user uploads. */
   clearSampleData: () => void;
   resetToSample: () => void;
@@ -92,6 +95,7 @@ const initialState: State = {
   ai_api_key: "",
   ai_model: "",
   onboarding_complete: false,
+  tutorial_done: false,
 };
 
 export const useStrata = create<State & Actions>()(
@@ -259,6 +263,8 @@ export const useStrata = create<State & Actions>()(
       setAiModel: (model) => set({ ai_model: model }),
 
       setOnboardingComplete: (done) => set({ onboarding_complete: done }),
+
+      setTutorialDone: (done) => set({ tutorial_done: done }),
 
       clearSampleData: () =>
         set((s) => {

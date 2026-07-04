@@ -61,6 +61,9 @@ export default function AppOverviewPage() {
               準備好開始自己的研究時點右邊按鈕清掉。
             </p>
           </div>
+          <Button asChild size="sm">
+            <Link href="/app/coding">▶ 互動教學</Link>
+          </Button>
           <Button
             size="sm"
             variant="outline"
