@@ -1,0 +1,28 @@
+[package]
+name = "pomodoro"
+version = "1.0.0"
+description = "蕃茄鐘 — 簡單、有質感的專注力工具"
+authors = ["吳昀慶 Yun Ching Wu <https://www.linkedin.com/in/yunching0513/>"]
+license = "MIT"
+repository = "https://github.com/yunching0513/-"
+edition = "2021"
+rust-version = "1.77.2"
+
+[lib]
+name = "pomodoro_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.6.2" }
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tauri = { version = "2.11.2", features = ["tray-icon", "image-png", "macos-private-api"] }
+tauri-plugin-notification = "2"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

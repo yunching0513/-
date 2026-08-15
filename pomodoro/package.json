@@ -1,0 +1,15 @@
+{
+  "name": "pomodoro",
+  "version": "1.0.0",
+  "private": true,
+  "description": "蕃茄鐘 — 簡單、有質感的專注力工具（macOS）",
+  "scripts": {
+    "dev": "tauri dev",
+    "build:mac": "tauri build",
+    "tauri": "tauri",
+    "icons": "node scripts/gen-icons.mjs"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.11.2"
+  }
+}
