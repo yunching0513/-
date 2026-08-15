@@ -4,6 +4,9 @@ on:
   workflow_dispatch:
   push:
     tags: ["pomodoro-v*"]
+    # workflow_dispatch 需等此檔進到 main 才會註冊；
+    # 在開發分支上以 push 觸發，讓分支階段就能產出 .dmg
+    branches: ["claude/pomodoro-focus-tool-er00mo"]
 
 permissions:
   contents: write
