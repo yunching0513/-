@@ -4,7 +4,10 @@
 > 休息時鎖定畫面讓 DMN 恢復；用雙耳節拍做神經相位鎖定。
 > macOS 原生 App（Tauri，安裝檔 1.9 MB）＋ 免安裝網頁版。
 
-**🌐 網頁版（免安裝，開啟就能用）**：<https://yunching0513.github.io/-/>
+**🌐 網頁版（免安裝，開啟就能用）**：<https://claude.ai/code/artifact/9d2da8fe-0ab4-417f-94ae-0101858991e6>
+
+> GitHub Pages 版（`https://yunching0513.github.io/-/`）已備妥，
+> 但需要 repo 擁有者先做一次性啟用，見下方 [開啟 GitHub Pages](#開啟-github-pages)。
 
 | 專注中 | 思緒卸載 | 休息鎖定 |
 |---|---|---|
@@ -64,7 +67,19 @@
 
 ### 1. 網頁版（最快）
 
-<https://yunching0513.github.io/-/> —— 開啟即用，手機也可以。資料存在該瀏覽器。
+<https://claude.ai/code/artifact/9d2da8fe-0ab4-417f-94ae-0101858991e6> —— 開啟即用，手機也可以。資料存在該瀏覽器。
+
+#### 開啟 GitHub Pages
+
+想要 `github.io` 的公開網址，需要 repo 擁有者做一次性設定
+（GitHub Actions 的預設權限無法自行開啟 Pages）：
+
+1. **Settings → Pages**
+2. **Build and deployment → Source** 選 **GitHub Actions**
+3. **Actions → [Pomodoro web (GitHub Pages)](https://github.com/yunching0513/-/actions/workflows/pomodoro-pages.yml) → Run workflow**
+
+之後每次 `pomodoro/ui/` 有變更就會自動重新部署到
+`https://yunching0513.github.io/-/`。
 
 ### 2. 下載 macOS 安裝檔
 
