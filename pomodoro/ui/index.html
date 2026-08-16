@@ -221,14 +221,28 @@
       </label>
 
       <div class="row-sep"></div>
-      <p class="sheet-group">專注音訊<small class="group-note">雙耳節拍需戴耳機才有效</small></p>
+      <p class="sheet-group">專注音景<small class="group-note">三層可疊加，A 鍵一鍵靜音</small></p>
 
-      <div class="seg" id="audioSeg" role="radiogroup" aria-label="專注音訊">
-        <button class="seg-btn on" data-audio="off" role="radio" aria-checked="true">關閉</button>
-        <button class="seg-btn" data-audio="beta" role="radio" aria-checked="false">Beta<small>分析</small></button>
-        <button class="seg-btn" data-audio="alpha" role="radio" aria-checked="false">Alpha<small>吸收</small></button>
-        <button class="seg-btn" data-audio="theta" role="radio" aria-checked="false">Theta<small>發散</small></button>
+      <p class="seg-label">腦波節拍<small>雙耳節拍，需戴耳機</small></p>
+      <div class="seg" id="beatSeg" role="radiogroup" aria-label="腦波節拍">
+        <button class="seg-btn on" data-val="off" role="radio" aria-checked="true">關閉</button>
+        <button class="seg-btn" data-val="beta" role="radio" aria-checked="false">Beta<small>分析</small></button>
+        <button class="seg-btn" data-val="alpha" role="radio" aria-checked="false">Alpha<small>吸收</small></button>
+        <button class="seg-btn" data-val="theta" role="radio" aria-checked="false">Theta<small>發散</small></button>
       </div>
+
+      <p class="seg-label">環境音<small>遮蔽環境雜訊</small></p>
+      <div class="seg" id="ambSeg" role="radiogroup" aria-label="環境音">
+        <button class="seg-btn on" data-val="off" role="radio" aria-checked="true">關閉</button>
+        <button class="seg-btn" data-val="rain" role="radio" aria-checked="false">雨聲</button>
+        <button class="seg-btn" data-val="waves" role="radio" aria-checked="false">海浪</button>
+        <button class="seg-btn" data-val="brown" role="radio" aria-checked="false">棕噪音</button>
+      </div>
+
+      <label class="row switch-row">
+        <span class="row-label">和聲鋪底<small>ambient 織體，休息時轉大調</small></span>
+        <input type="checkbox" id="optPad"><i class="switch"></i>
+      </label>
       <div class="row">
         <span class="row-label">音量</span>
         <input type="range" id="optVolume" class="range" min="0" max="100" value="35" aria-label="音量">

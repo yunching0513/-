@@ -112,7 +112,11 @@ input, textarea {
   background: var(--bg);
   display: flex;
   flex-direction: column;
+  /* clip 不建立捲動容器：面板下方元素取得焦點時，瀏覽器的 scrollIntoView
+     才不會把整個版面推走（hidden 會被程式化捲動且無捲軸可還原）。
+     舊 WebKit 不支援 clip 時退回 hidden，另有 JS 保險。 */
   overflow: hidden;
+  overflow: clip;
 }
 
 html:not(.tauri) body {
@@ -208,8 +212,8 @@ html.tauri .web-foot { display: none; }
 #pinBtn.pinned .pin-body { fill: currentColor; }
 html:not(.tauri) #pinBtn { display: none; }
 
-/* 播放中的音訊圖示：輕微脈動 */
-#audioBtn.on svg { animation: audio-pulse 3.2s ease-in-out infinite; }
+/* 音景實際出聲時才脈動；只是設定開著則單純上色 */
+#audioBtn.playing svg { animation: audio-pulse 3.2s ease-in-out infinite; }
 @keyframes audio-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: .55; }
@@ -641,7 +645,17 @@ html.tauri .overlay { background: var(--bg-glass); }
 .switch-row input:checked + .switch::after { transform: translateX(16px); }
 .switch-row input:focus-visible + .switch { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-/* 分段控制（音訊頻段） */
+/* 分段控制（音景層） */
+.seg-label {
+  font-size: 11.5px;
+  color: var(--muted);
+  padding: 8px 2px 0;
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+.seg-label small { font-size: 10px; color: var(--faint); letter-spacing: .03em; }
+
 .seg {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

@@ -19,7 +19,7 @@ const DEFAULTS = {
   focus: 25, short: 5, long: 15,
   autoBreak: true, autoFocus: false, sound: true, notify: true, pinned: false,
   warmup: true, restLock: true, cleanCut: true,
-  audio: 'off', volume: 35,
+  audio: 'off', ambience: 'off', pad: false, muted: false, volume: 35,
 };
 const settings = Object.assign({}, DEFAULTS, store.get('pomo.settings.v1', {}));
 const saveSettings = () => store.set('pomo.settings.v1', settings);
@@ -240,14 +240,19 @@ function renderDumpRecall() {
   $('#dumpStamp').textContent = `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
-/* ———— 音訊：提示音 + 雙耳節拍（原則四） ———— */
+/* ———— 音訊：提示音 + 三層音景（原則四） ———— */
 let audioCtx = null;
+let mix = null; // 音景總匯流，提示音不經過它
+
 function ensureAudio() {
   if (!audioCtx) {
     const AC = window.AudioContext || window.webkitAudioContext;
-    if (AC) audioCtx = new AC();
+    if (!AC) return null;
+    audioCtx = new AC();
+    mix = audioCtx.createGain();
+    mix.connect(audioCtx.destination);
   }
-  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+  if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
   return audioCtx;
 }
 
@@ -273,22 +278,54 @@ function chime(kind) {
   }
 }
 
-/* 雙耳節拍：左右耳各一純音，頻率差即為目標腦波頻率 */
+/* 三層可獨立開關：雙耳節拍 / 環境音 / 和聲鋪底 */
+const layers = { beat: null, amb: null, pad: null };
+const LAYER_VOL = { beat: 0.15, amb: 0.32, pad: 0.10 };
+
 const BEAT_HZ = { beta: 18, alpha: 8, theta: 6 };
 const CARRIER = 220; // A3 載波，低頻聽感柔和
-let beat = null;
 
-function startBeat(band) {
-  const ctx = ensureAudio();
-  if (!ctx || !BEAT_HZ[band]) return;
-  stopBeat(true);
+/* 和弦：專注用小調（沉靜不搶戲），休息用大調（開闊放鬆） */
+const CHORD = {
+  focus: [110.00, 164.81, 220.00, 261.63],           // A2 E3 A3 C4 — Am
+  rest:  [110.00, 164.81, 220.00, 277.18, 329.63],   // A2 E3 A3 C#4 E4 — A
+};
 
+/* 噪音樣本：4 秒 loop，首尾交叉淡化避免接縫 click */
+const noiseCache = {};
+function noiseBuffer(kind) {
+  if (noiseCache[kind]) return noiseCache[kind];
+  const ctx = audioCtx;
+  const len = Math.floor(ctx.sampleRate * 4);
+  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+  const d = buf.getChannelData(0);
+
+  if (kind === 'white') {
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  } else {
+    let last = 0; // 積分白噪音 → 棕噪音，能量集中在低頻
+    for (let i = 0; i < len; i++) {
+      last = (last + 0.02 * (Math.random() * 2 - 1)) / 1.02;
+      d[i] = last * 3.5;
+    }
+  }
+
+  const fade = Math.floor(ctx.sampleRate * 0.05);
+  for (let i = 0; i < fade; i++) {
+    const t = i / fade;
+    d[i] = d[i] * t + d[len - fade + i] * (1 - t);
+  }
+
+  noiseCache[kind] = buf;
+  return buf;
+}
+
+function buildBeat(band) {
+  const ctx = audioCtx;
   const merger = ctx.createChannelMerger(2);
-  const master = ctx.createGain();
-  master.gain.setValueAtTime(0.0001, ctx.currentTime);
-  master.gain.exponentialRampToValueAtTime(Math.max(0.0002, settings.volume / 100 * 0.16), ctx.currentTime + 1.6);
-
-  const oscs = [CARRIER, CARRIER + BEAT_HZ[band]].map((freq, i) => {
+  const gain = ctx.createGain();
+  gain.gain.value = 0.0001;
+  const nodes = [CARRIER, CARRIER + BEAT_HZ[band]].map((freq, i) => {
     const osc = ctx.createOscillator();
     osc.type = 'sine';
     osc.frequency.value = freq;
@@ -296,46 +333,162 @@ function startBeat(band) {
     osc.start();
     return osc;
   });
-
-  merger.connect(master).connect(ctx.destination);
-  beat = { oscs, master, band };
-  el.audioBtn.classList.add('on');
-  el.audioBtn.setAttribute('aria-pressed', 'true');
+  merger.connect(gain).connect(mix);
+  return { gain, nodes };
 }
 
-function stopBeat(immediate) {
-  if (!beat) return;
-  const { oscs, master } = beat;
+function buildAmbience(kind) {
   const ctx = audioCtx;
-  const t = ctx.currentTime;
-  const stopAt = immediate ? t + 0.05 : t + 0.9;
-  try {
-    master.gain.cancelScheduledValues(t);
-    master.gain.setValueAtTime(Math.max(0.0001, master.gain.value), t);
-    master.gain.exponentialRampToValueAtTime(0.0001, stopAt);
-  } catch { /* 節點已停止 */ }
-  for (const o of oscs) { try { o.stop(stopAt + 0.05); } catch { /* 已停止 */ } }
-  beat = null;
-  el.audioBtn.classList.remove('on');
-  el.audioBtn.setAttribute('aria-pressed', 'false');
+  const src = ctx.createBufferSource();
+  src.buffer = noiseBuffer(kind === 'rain' ? 'white' : 'brown');
+  src.loop = true;
+  const gain = ctx.createGain();
+  gain.gain.value = 0.0001;
+  const nodes = [src];
+
+  if (kind === 'rain') {
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass'; bp.frequency.value = 1500; bp.Q.value = 0.5;
+    const hs = ctx.createBiquadFilter();
+    hs.type = 'highshelf'; hs.frequency.value = 4500; hs.gain.value = -7;
+    src.connect(bp).connect(hs).connect(gain);
+  } else if (kind === 'waves') {
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass'; lp.frequency.value = 520; lp.Q.value = 0.4;
+    // 潮汐：獨立的調製節點，不去動被淡入淡出控制的 gain
+    const tide = ctx.createGain();
+    tide.gain.value = 0.62;
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = 0.07; // 約 14 秒一次起落
+    const cut = ctx.createGain(); cut.gain.value = 240;
+    const amp = ctx.createGain(); amp.gain.value = 0.34;
+    lfo.connect(cut).connect(lp.frequency);
+    lfo.connect(amp).connect(tide.gain);
+    lfo.start();
+    src.connect(lp).connect(tide).connect(gain);
+    nodes.push(lfo);
+  } else {
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass'; lp.frequency.value = 1000;
+    src.connect(lp).connect(gain);
+  }
+
+  gain.connect(mix);
+  src.start();
+  return { gain, nodes };
 }
 
-/* 專注播使用者選定的頻段；休息自動切 Alpha（利於 DMN 恢復） */
-function syncBeat() {
-  if (settings.audio === 'off' || !state.running) { stopBeat(); return; }
-  const want = state.mode === 'focus' ? settings.audio : 'alpha';
-  if (beat?.band === want) return;
-  startBeat(want);
+function buildPad(mode) {
+  const ctx = audioCtx;
+  const freqs = CHORD[mode];
+  const gain = ctx.createGain();
+  gain.gain.value = 0.0001;
+  const lp = ctx.createBiquadFilter();
+  lp.type = 'lowpass'; lp.frequency.value = 760; lp.Q.value = 0.3;
+  lp.connect(gain).connect(mix);
+
+  const nodes = [];
+  freqs.forEach((f, i) => {
+    for (const cents of [-4, 4]) { // 微失諧兩支 → 自然的 chorus 厚度
+      const osc = ctx.createOscillator();
+      osc.type = i === 0 ? 'triangle' : 'sine';
+      osc.frequency.value = f * Math.pow(2, cents / 1200);
+      const g = ctx.createGain();
+      g.gain.value = 0.5 / freqs.length / (i === 0 ? 1 : 1.7);
+      osc.connect(g).connect(lp);
+      osc.start();
+      nodes.push(osc);
+    }
+  });
+
+  // 織體呼吸：極慢 LFO 推動截止頻率
+  const lfo = ctx.createOscillator();
+  lfo.frequency.value = 0.045; // 約 22 秒一輪
+  const depth = ctx.createGain();
+  depth.gain.value = 240;
+  lfo.connect(depth).connect(lp.frequency);
+  lfo.start();
+  nodes.push(lfo);
+
+  return { gain, nodes };
+}
+
+const layerTarget = (name) => Math.max(0.0002, settings.volume / 100 * LAYER_VOL[name]);
+
+function killLayer(name) {
+  const l = layers[name];
+  if (!l) return;
+  layers[name] = null;
+  const t = audioCtx.currentTime;
+  const stopAt = t + 0.9;
+  try {
+    l.gain.gain.cancelScheduledValues(t);
+    l.gain.gain.setValueAtTime(Math.max(0.0001, l.gain.gain.value), t);
+    l.gain.gain.exponentialRampToValueAtTime(0.0001, stopAt);
+  } catch { /* 節點已停止 */ }
+  for (const n of l.nodes) { try { n.stop(stopAt + 0.05); } catch { /* 已停止 */ } }
+}
+
+function syncLayer(name, key, build) {
+  if (layers[name]?.key === key) return;
+  killLayer(name); // 舊層淡出與新層淡入重疊即為 crossfade
+  if (!key) return;
+  const l = build(key);
+  l.key = key;
+  layers[name] = l;
+  const t = audioCtx.currentTime;
+  l.gain.gain.setValueAtTime(0.0001, t);
+  l.gain.gain.exponentialRampToValueAtTime(layerTarget(name), t + 1.4);
+}
+
+const audioWanted = () => settings.audio !== 'off' || settings.ambience !== 'off' || settings.pad;
+
+/* 專注播選定頻段；休息自動切 Alpha 與大調和聲（利於 DMN 恢復） */
+function syncAudio() {
+  if (!audioCtx) { updateAudioBtn(); return; }
+  const live = !settings.muted && state.running;
+  const resting = state.mode !== 'focus';
+
+  syncLayer('beat', live && settings.audio !== 'off' ? (resting ? 'alpha' : settings.audio) : null, buildBeat);
+  syncLayer('amb', live && settings.ambience !== 'off' ? settings.ambience : null, buildAmbience);
+  syncLayer('pad', live && settings.pad ? (resting ? 'rest' : 'focus') : null, buildPad);
+  updateAudioBtn();
+}
+
+function updateAudioBtn() {
+  const on = !settings.muted && audioWanted();
+  el.audioBtn.classList.toggle('on', on);
+  el.audioBtn.classList.toggle('playing', on && state.running);
+  el.audioBtn.setAttribute('aria-pressed', String(on));
+  el.audioBtn.title = on ? '靜音音景（A）' : '開啟音景（A）';
 }
 
 function setVolume(v) {
   settings.volume = v;
   saveSettings();
-  if (beat && audioCtx) {
-    const t = audioCtx.currentTime;
-    beat.master.gain.cancelScheduledValues(t);
-    beat.master.gain.setTargetAtTime(Math.max(0.0001, v / 100 * 0.16), t, 0.15);
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  for (const name of Object.keys(layers)) {
+    const l = layers[name];
+    if (!l) continue;
+    l.gain.gain.cancelScheduledValues(t);
+    l.gain.gain.setTargetAtTime(layerTarget(name), t, 0.12);
   }
+}
+
+/* 耳機鍵：一鍵靜音／恢復；全部關著時給一組預設 */
+function toggleMute() {
+  if (!audioWanted()) {
+    settings.audio = 'alpha';
+    settings.ambience = 'rain';
+    settings.muted = false;
+  } else {
+    settings.muted = !settings.muted;
+  }
+  saveSettings();
+  syncSheetUI();
+  ensureAudio();
+  syncAudio();
 }
 
 /* ———— 通知 ———— */
@@ -475,7 +628,7 @@ function setMode(mode, { autoStart = false } = {}) {
   renderMeta();
   render();
   if (autoStart) start();
-  else { syncBeat(); syncTray(fmt(remaining())); }
+  else { syncAudio(); syncTray(fmt(remaining())); }
 }
 
 function start() {
@@ -484,7 +637,7 @@ function start() {
   state.running = true;
   renderMeta();
   render();
-  syncBeat();
+  syncAudio();
   if (state.mode !== 'focus' && settings.restLock) openRest();
 }
 
@@ -494,7 +647,7 @@ function pause() {
   state.endAt = null;
   renderMeta();
   render();
-  syncBeat();
+  syncAudio();
   closeRest();
 }
 
@@ -514,7 +667,7 @@ function reset() {
   closeRest();
   renderMeta();
   render();
-  syncBeat();
+  syncAudio();
 }
 
 /* 一段結束：計分、提示，再交給 applyNext 換段 */
@@ -604,17 +757,21 @@ function syncSheetUI() {
   });
   for (const [id, key] of TOGGLES) $(`#${id}`).checked = settings[key];
   $('#optVolume').value = settings.volume;
-  document.querySelectorAll('.seg-btn').forEach((b) => {
-    const on = b.dataset.audio === settings.audio;
-    b.classList.toggle('on', on);
-    b.setAttribute('aria-checked', String(on));
-  });
+  for (const [id, key] of [['beatSeg', 'audio'], ['ambSeg', 'ambience']]) {
+    for (const b of document.querySelectorAll(`#${id} .seg-btn`)) {
+      const on = b.dataset.val === settings[key];
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-checked', String(on));
+    }
+  }
+  updateAudioBtn();
 }
 
 const TOGGLES = [
   ['optAutoBreak', 'autoBreak'], ['optAutoFocus', 'autoFocus'],
   ['optSound', 'sound'], ['optNotify', 'notify'],
   ['optWarmup', 'warmup'], ['optRestLock', 'restLock'], ['optCleanCut', 'cleanCut'],
+  ['optPad', 'pad'],
 ];
 
 /* ———— 事件繫結 ———— */
@@ -637,6 +794,10 @@ for (const [id, key] of TOGGLES) {
     settings[key] = e.target.checked;
     saveSettings();
     if (key === 'sound' && e.target.checked) ensureAudio();
+    if (key === 'pad') {
+      if (e.target.checked) { settings.muted = false; ensureAudio(); }
+      syncAudio();
+    }
     if (key === 'restLock') {
       if (!e.target.checked) closeRest();
       else if (state.running && state.mode !== 'focus') openRest();
@@ -644,28 +805,22 @@ for (const [id, key] of TOGGLES) {
   });
 }
 
-$('#audioSeg').addEventListener('click', (e) => {
-  const btn = e.target.closest('.seg-btn');
-  if (!btn) return;
-  settings.audio = btn.dataset.audio;
-  saveSettings();
-  syncSheetUI();
-  ensureAudio();
-  stopBeat(true);
-  syncBeat();
-});
+for (const [id, key] of [['beatSeg', 'audio'], ['ambSeg', 'ambience']]) {
+  $(`#${id}`).addEventListener('click', (e) => {
+    const btn = e.target.closest('.seg-btn');
+    if (!btn) return;
+    settings[key] = btn.dataset.val;
+    settings.muted = false; // 手動挑了音色就代表要聽
+    saveSettings();
+    syncSheetUI();
+    ensureAudio();
+    syncAudio();
+  });
+}
 
 $('#optVolume').addEventListener('input', (e) => setVolume(+e.target.value));
 
-el.audioBtn.addEventListener('click', () => {
-  // 快速切換：關閉 ⇄ 上次選的頻段（預設 Alpha）
-  settings.audio = settings.audio === 'off' ? (beat?.band || 'alpha') : 'off';
-  saveSettings();
-  syncSheetUI();
-  ensureAudio();
-  stopBeat(true);
-  syncBeat();
-});
+el.audioBtn.addEventListener('click', toggleMute);
 
 /* 待辦 */
 $('#taskForm').addEventListener('submit', (e) => {
@@ -703,6 +858,12 @@ document.querySelectorAll('.close-sheet').forEach((b) => b.addEventListener('cli
 el.backdrop.addEventListener('click', () => closeSheets());
 
 document.addEventListener('pointerdown', ensureAudio, { once: true, capture: true });
+
+/* 舊 WebKit 無 overflow:clip 時的保險：焦點捲動推走版面就立刻歸位 */
+$('#app').addEventListener('scroll', (e) => {
+  e.currentTarget.scrollTop = 0;
+  e.currentTarget.scrollLeft = 0;
+});
 
 document.addEventListener('keydown', (e) => {
   const typing = /^(INPUT|TEXTAREA)$/.test(e.target.tagName);
@@ -751,5 +912,10 @@ window.__pomo = {
   state, settings, finishSegment, start, pause,
   tasks: () => tasks,
   active: () => activeTask(),
-  beat: () => (beat ? { band: beat.band, ctx: audioCtx?.state } : null),
+  audio: () => ({
+    ctx: audioCtx?.state || null,
+    beat: layers.beat?.key || null,
+    amb: layers.amb?.key || null,
+    pad: layers.pad?.key || null,
+  }),
 };
