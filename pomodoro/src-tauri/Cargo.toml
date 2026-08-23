@@ -1,7 +1,7 @@
 [package]
-name = "pomodoro"
+name = "flowmato"
 version = "1.0.0"
-description = "蕃茄鐘 — 簡單、有質感的專注力工具"
+description = "Flowmato 心流鐘 — 順應大腦限制的專注工具"
 authors = ["吳昀慶 Yun Ching Wu <https://www.linkedin.com/in/yunching0513/>"]
 license = "MIT"
 repository = "https://github.com/yunching0513/-"
@@ -9,7 +9,7 @@ edition = "2021"
 rust-version = "1.77.2"
 
 [lib]
-name = "pomodoro_lib"
+name = "flowmato_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
@@ -18,6 +18,8 @@ tauri-build = { version = "2.6.2" }
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+# tray-icon / macos-private-api 在行動平台會被忽略，
+# 程式碼層以 #[cfg(desktop)] 隔離，不影響 iOS / Android 建置
 tauri = { version = "2.11.2", features = ["tray-icon", "image-png", "macos-private-api"] }
 tauri-plugin-notification = "2"
 

@@ -3,6 +3,9 @@
 /* ———— 工具 ———— */
 const $ = (s) => document.querySelector(s);
 const TAURI = window.__TAURI__ || null;
+/* 行動版（iOS/Android）：沒有選單列與視窗置頂，且背景時 JS 會被凍結 */
+const MOBILE = !!TAURI && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+if (MOBILE) document.documentElement.classList.add('mobile');
 
 const store = {
   get(key, fallback) {
@@ -150,7 +153,7 @@ function render() {
     el.time.textContent = text;
     if (!el.restOverlay.hidden) el.restTime.textContent = text;
     syncTray(text);
-    if (!TAURI) document.title = state.running ? `${text} — 蕃茄鐘` : '蕃茄鐘 — 心流專注工具';
+    if (!TAURI) document.title = state.running ? `${text} — Flowmato` : 'Flowmato 心流鐘';
   }
   el.ringBar.style.strokeDashoffset = `${CIRC * (1 - rem / durMs(state.mode))}`;
 }
@@ -492,8 +495,35 @@ function toggleMute() {
 }
 
 /* ———— 通知 ———— */
+/* 行動版進入背景後 WebView 的 JS 會被凍結，計時器不會如期觸發。
+   因此按下開始時就把「時間到」的通知預先排程給系統；
+   暫停／重設／跳過時取消。回到前景時 remaining() 以時間戳重算，本來就準。 */
+const NOTI_ID = 27182;
+
+async function scheduleEndNotification() {
+  if (!settings.notify || !TAURI?.notification || !state.running) return;
+  await cancelScheduled();
+  const n = TAURI.notification;
+  try {
+    if (!(await n.isPermissionGranted()) && (await n.requestPermission()) !== 'granted') return;
+    const at = new Date(state.endAt);
+    const focusDone = state.mode === 'focus';
+    await n.sendNotification({
+      id: NOTI_ID,
+      title: focusDone ? '完成一顆蕃茄 🍅' : '休息結束',
+      body: focusDone ? '辛苦了，去休息一下。' : '回來囉，開始下一輪專注。',
+      schedule: { at, repeating: false, allowWhileIdle: true },
+    });
+  } catch { /* 舊版或不支援排程時，退回前景通知 */ }
+}
+
+async function cancelScheduled() {
+  try { await TAURI?.notification?.cancel([NOTI_ID]); } catch { /* 沒有待排程項目 */ }
+}
+
 async function notify(title, body) {
   if (!settings.notify) return;
+  if (MOBILE) return; // 行動版已由 scheduleEndNotification 預先排程，避免重複
   try {
     if (TAURI?.notification) {
       const n = TAURI.notification;
@@ -624,6 +654,7 @@ function setMode(mode, { autoStart = false } = {}) {
   state.endAt = null;
   state.remainMs = durMs(mode);
   state.warmupDone = false;
+  cancelScheduled();
   closeRest();
   renderMeta();
   render();
@@ -638,6 +669,7 @@ function start() {
   renderMeta();
   render();
   syncAudio();
+  scheduleEndNotification();
   if (state.mode !== 'focus' && settings.restLock) openRest();
 }
 
@@ -645,6 +677,7 @@ function pause() {
   state.remainMs = remaining();
   state.running = false;
   state.endAt = null;
+  cancelScheduled();
   renderMeta();
   render();
   syncAudio();
@@ -664,6 +697,7 @@ function reset() {
   state.running = false;
   state.endAt = null;
   state.warmupDone = false;
+  cancelScheduled();
   closeRest();
   renderMeta();
   render();

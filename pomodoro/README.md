@@ -1,8 +1,8 @@
-# 蕃茄鐘 🍅 — 心流專注工具
+# Flowmato 心流鐘 🍅
 
 > 不只是計時器。依照大腦的神經生物學限制設計：先卸載注意力殘留，再進入專注；
 > 休息時鎖定畫面讓 DMN 恢復；用雙耳節拍做神經相位鎖定。
-> macOS 原生 App（Tauri，安裝檔 1.9 MB）＋ 免安裝網頁版。
+> macOS 原生 App（Tauri，安裝檔 1.9 MB）＋ 免安裝網頁版 ＋ iOS / Android 上架準備完成。
 
 **🌐 網頁版（免安裝，開啟就能用）**：<https://claude.ai/code/artifact/9d2da8fe-0ab4-417f-94ae-0101858991e6>
 
@@ -63,7 +63,7 @@
 
 ---
 
-## 三種使用方式
+## 使用方式
 
 ### 1. 網頁版（最快）
 
@@ -85,14 +85,24 @@
 
 1. 到 **Actions → [Pomodoro macOS build](https://github.com/yunching0513/-/actions/workflows/pomodoro-build.yml)**，
    點最近一次成功的執行，在下方 **Artifacts** 下載 `pomodoro-macos`
-2. 解壓縮得到 `蕃茄鐘_1.0.0_aarch64.dmg`（Apple Silicon），打開拖進 **應用程式**
+2. 解壓縮得到 `Flowmato_1.0.0_aarch64.dmg`（Apple Silicon），打開拖進 **應用程式**
 3. **第一次打開**：安裝檔未經 Apple 簽章，macOS 會擋——
    - **系統設定 → 隱私權與安全性** → 點 **強制打開**
-   - 或終端機執行 `xattr -cr /Applications/蕃茄鐘.app`
+   - 或終端機執行 `xattr -cr /Applications/Flowmato.app`
 
 > 推 `pomodoro-v*` tag（如 `pomodoro-v1.0.0`）會自動建置並附加到 GitHub Release。
 
-### 3. 本機建置（無安全性警告）
+### 3. iOS / Android
+
+雙平台的專案設定、圖示、商店素材與建置 CI 都已備妥，
+剩下需要開發者帳號與簽章的步驟見 **[docs/PUBLISHING.md](docs/PUBLISHING.md)**。
+
+行動版與桌面版共用同一份 `ui/`，但有幾處針對手機調整：
+安全區域避開瀏海、觸控目標放大到 44px 以上、覆蓋層改為不透明，
+以及**進入背景前預先排程本地通知**——手機在背景會凍結 JS，
+計時器不能靠前景迴圈觸發（回到前景時以時間戳重算，所以時間永遠是準的）。
+
+### 4. 本機建置（無安全性警告）
 
 需要 Rust、Xcode Command Line Tools、Node 22+。
 
@@ -119,8 +129,14 @@ pomodoro/
 │   ├── src/lib.rs        選單列倒數、通知、關閉→隱藏、Dock 重開
 │   ├── tauri.conf.json   視窗、毛玻璃、打包設定
 │   └── icons/            App 圖示（以純數學 SDF 繪製）
-├── scripts/gen-icons.mjs 重新產生圖示：npm run icons
-└── docs/                 README 截圖
+├── scripts/
+│   ├── icon-lib.mjs      圖示繪圖引擎（SDF 數學繪製，自行編碼 PNG/ICNS/ICO）
+│   ├── gen-icons.mjs     產生全平台圖示：npm run icons
+│   └── store/            商店素材的 HTML 模板
+├── store/                上架素材（圖示、截圖、功能圖片、文案）
+└── docs/
+    ├── PUBLISHING.md     App Store / Play 上架逐步指南
+    └── music-prompts.md  用專業 AI 服務生成背景音樂的 prompt 包
 ```
 
 同一份 `ui/` 同時是網頁版與 App 內容：`window.__TAURI__` 存在時切換成原生視窗樣式（毛玻璃、置頂、選單列）。

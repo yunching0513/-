@@ -139,6 +139,60 @@ html.tauri .app {
   background: var(--bg-glass);
 }
 
+/* ———— 行動版（iOS / Android）———— */
+/* 滿版、不透明底、避開瀏海與 home indicator */
+html.mobile body { background: var(--bg); }
+html.mobile .app {
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh; /* 位址列收合時仍填滿 */
+  background: var(--bg);
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* 覆蓋層與面板同樣避開系統區域 */
+html.mobile .overlay { padding: calc(22px + env(safe-area-inset-top)) 22px calc(22px + env(safe-area-inset-bottom)); }
+html.mobile .sheet { padding-bottom: env(safe-area-inset-bottom); }
+html.mobile .backdrop { inset: calc(-1 * env(safe-area-inset-top)) 0 calc(-1 * env(safe-area-inset-bottom)); }
+
+/* 觸控目標放大到 44px 以上（Apple HIG / Material 建議值） */
+html.mobile .icon-btn { width: 44px; height: 44px; }
+html.mobile .icon-btn svg { width: 20px; height: 20px; }
+html.mobile .step-btn { width: 38px; height: 38px; font-size: 18px; }
+html.mobile .ghost-btn { width: 52px; height: 52px; }
+html.mobile .ghost-btn svg { width: 22px; height: 22px; }
+html.mobile .play-btn { width: 72px; height: 72px; }
+html.mobile .play-btn svg { width: 30px; height: 30px; }
+html.mobile .task-check { width: 24px; height: 24px; }
+html.mobile .task-del { width: 34px; height: 34px; opacity: 1; } /* 觸控沒有 hover */
+html.mobile .task-item { padding: 11px 4px 11px 2px; }
+html.mobile .task-input, html.mobile .cut-input, html.mobile .dump-text { font-size: 16px; } /* 16px 以下 iOS 會自動放大頁面 */
+
+/* 高螢幕手機：標題列固定在上、統計固定在下，中間的環與控制鍵整組置中。
+   桌面的 .controls{flex:1 0 auto} 在 900px 高的手機上會撐出一大片空白，
+   改用上下 auto margin 讓兩者一起浮在中央。 */
+/* 置中的是「模式標籤→chip→環→控制鍵」整組，chip 才不會與環拉開一大段 */
+html.mobile .mode-row { margin-top: auto; }
+html.mobile .ring-wrap {
+  width: min(300px, 74vw);
+  height: min(300px, 74vw);
+  margin-top: clamp(10px, 2.5vh, 24px);
+}
+html.mobile .time { font-size: clamp(52px, 15vw, 68px); }
+html.mobile .ring-center { gap: clamp(13px, 3.5vw, 18px); }
+html.mobile .dot { width: 7px; height: 7px; }
+html.mobile .controls {
+  flex: 0 0 auto;
+  gap: clamp(30px, 9vw, 44px);
+  padding-top: clamp(24px, 6vh, 54px);
+  margin-bottom: auto;
+}
+html.mobile .today { padding-bottom: max(18px, 2.5vh); }
+html.mobile .task-chip { max-width: min(300px, 80vw); font-size: 13px; }
+
 .web-hints {
   font-size: 11.5px;
   letter-spacing: .04em;
@@ -210,7 +264,7 @@ html.tauri .web-foot { display: none; }
 
 #pinBtn.pinned, #audioBtn.on { color: var(--accent); }
 #pinBtn.pinned .pin-body { fill: currentColor; }
-html:not(.tauri) #pinBtn { display: none; }
+html:not(.tauri) #pinBtn, html.mobile #pinBtn { display: none; } /* 網頁與行動版沒有視窗置頂 */
 
 /* 音景實際出聲時才脈動；只是設定開著則單純上色 */
 #audioBtn.playing svg { animation: audio-pulse 3.2s ease-in-out infinite; }
@@ -397,6 +451,8 @@ body.running .play-btn .ic-pause { display: block; }
   transition: opacity .3s ease;
 }
 html.tauri .overlay { background: var(--bg-glass); }
+/* 行動版沒有毛玻璃視窗，覆蓋層必須不透明，否則底下的計時器會透出來 */
+html.mobile .overlay { background: var(--bg); }
 .overlay.show { opacity: 1; }
 
 .overlay-inner {

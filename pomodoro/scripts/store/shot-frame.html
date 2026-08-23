@@ -1,0 +1,30 @@
+<!doctype html>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 430px; height: 932px; overflow: hidden;
+    font-family: -apple-system, "PingFang TC", "Noto Sans TC", "Noto Sans CJK TC", sans-serif;
+    background: linear-gradient(168deg, #FAF7F2 0%, #F0EADE 100%);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 46px 30px 0;
+  }
+  h2 { font-size: 30px; font-weight: 600; letter-spacing: -.01em; color: #26211C; text-align: center; line-height: 1.35; text-wrap: balance; }
+  p { font-size: 15px; line-height: 1.65; color: #8D8579; text-align: center; margin-top: 12px; max-width: 24ch; text-wrap: balance; }
+  .shot { margin-top: 34px; width: 356px; border-radius: 26px; overflow: hidden;
+          box-shadow: 0 24px 60px rgba(70,46,28,.20), 0 2px 8px rgba(70,46,28,.10); }
+  .shot img { width: 100%; display: block; }
+  body.dark { background: linear-gradient(168deg, #1C1A16 0%, #100E0C 100%); }
+  body.dark h2 { color: #EFEAE2; }
+  body.dark p { color: #968D80; }
+</style>
+<h2 id="t"></h2>
+<p id="s"></p>
+<div class="shot"><img id="img" src=""></div>
+<script>
+  const q = new URLSearchParams(location.search);
+  t.textContent = q.get('t') || '';
+  s.textContent = q.get('s') || '';
+  img.src = q.get('img') || '';
+  if (q.get('dark') === '1') document.body.classList.add('dark');
+</script>

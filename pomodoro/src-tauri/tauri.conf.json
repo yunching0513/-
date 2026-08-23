@@ -1,9 +1,9 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "蕃茄鐘",
-  "mainBinaryName": "pomodoro",
+  "productName": "Flowmato",
+  "mainBinaryName": "flowmato",
   "version": "1.0.0",
-  "identifier": "tw.yunching.pomodoro",
+  "identifier": "tw.yunching.flowmato",
   "build": {
     "frontendDist": "../ui"
   },
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "蕃茄鐘",
+        "title": "Flowmato 心流鐘",
         "width": 340,
         "height": 540,
         "resizable": false,
@@ -37,10 +37,17 @@
     "active": true,
     "targets": ["app", "dmg"],
     "category": "Productivity",
-    "shortDescription": "簡單、有質感的蕃茄鐘專注工具",
-    "longDescription": "以蕃茄工作法為核心的極簡專注力工具：25 分鐘專注、5 分鐘短休息、每 4 輪一次長休息。選單列即時倒數、桌面通知、置頂小視窗、自動深淺色主題。",
+    "shortDescription": "順應大腦限制的心流專注工具",
+    "longDescription": "以蕃茄工作法為核心的專注工具：開始前先卸載腦中牽掛，25 分鐘專注、5 分鐘休息，休息時以呼吸引導讓大腦真正離線，並可疊加三層專注音景。",
+    "copyright": "© 2026 吳昀慶 Yun Ching Wu",
     "macOS": {
       "minimumSystemVersion": "11.0"
+    },
+    "iOS": {
+      "minimumSystemVersion": "13.0"
+    },
+    "android": {
+      "minSdkVersion": 24
     },
     "icon": [
       "icons/32x32.png",
