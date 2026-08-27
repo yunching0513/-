@@ -60,6 +60,7 @@
   <button id="taskChip" class="task-chip" title="待辦事項（T）">
     <span class="chip-dot"></span>
     <span id="taskChipText">＋ 這回合要完成什麼？</span>
+    <span id="taskChipCount" class="chip-count" hidden></span>
   </button>
 
   <div class="ring-wrap" id="ringWrap">
@@ -126,6 +127,7 @@
         <span class="breath-word" id="breathWord">吸氣</span>
       </div>
       <p class="rest-time" id="restTime">5:00</p>
+      <p class="rest-note" id="restNote" hidden></p>
       <p class="rest-hint">別滑手機。看向遠方，或就只是呼吸。</p>
       <button id="restEnd" class="text-btn">提前結束休息</button>
     </div>
@@ -162,8 +164,9 @@
         <button type="submit" class="add-btn" aria-label="新增">＋</button>
       </form>
       <p class="task-empty" id="taskEmpty">還沒有待辦。先寫下這回合最重要的那一件。</p>
+      <p class="task-plan" id="taskPlan" hidden></p>
       <ul class="task-list" id="taskList"></ul>
-      <p class="task-tip">點任務文字＝設為本回合目標；完成的蕃茄會自動記在它身上。</p>
+      <p class="task-tip">點文字＝設為本回合目標；點第幾個圓點＝規劃幾顆蕃茄，實心的是已經做掉的。這份清單和「歷程」是同一份。</p>
 
       <div id="dumpRecall" hidden>
         <div class="row-sep"></div>

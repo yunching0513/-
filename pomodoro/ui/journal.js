@@ -138,12 +138,54 @@
     head.append(h, s);
     detail.appendChild(head);
 
-    // 這一天的專注段落
-    const sessions = dayOf(picked).sessions.filter((x) => x.s);
-    if (sessions.length) {
+    const sessions = dayOf(picked).sessions.filter((x) => x.s).sort((a, b) => a.s - b.s);
+
+    /* 這一天的待辦。用的是 app.js 那份資料、那個列元件——在這裡勾完成、改規劃、
+       設本回合目標，待辦面板同步就變；反過來也一樣。 */
+    const pomo = window.__pomo;
+    const all = pomo?.tasks?.() || [];
+    const dayTasks = all.filter((t) => t.date === picked || (t.doneAt && keyOf(new Date(t.doneAt)) === picked));
+
+    // 規劃 vs 實際：計畫排得下嗎、有沒有做超過，一行講完
+    const est = dayTasks.reduce((n, t) => n + (t.est || 0), 0);
+    if (est > 0 || dayTasks.length) {
+      const plan = document.createElement('p');
+      plan.className = 'day-plan';
+      const doneT = dayTasks.filter((t) => t.done).length;
+      plan.textContent = `${dayTasks.length} 件事`
+        + (est > 0 ? ` · 規劃 ${est} 顆` : '')
+        + (count > 0 ? ` · 實際 ${count} 顆` : '')
+        + (doneT > 0 ? ` · 完成 ${doneT} 件` : '');
+      detail.appendChild(plan);
+    }
+
+    const tl = document.createElement('ul');
+    tl.className = 'day-tasks';
+    const claimed = new Set();
+    for (const t of dayTasks) {
+      tl.appendChild(pomo.taskRow(t, { dated: t.date !== picked }));
+      // 這件事當天實際做了哪幾段，直接掛在它底下
+      const own = sessions.filter((x) => x.tid === t.id);
+      own.forEach((x) => claimed.add(x));
+      if (own.length) {
+        const li = document.createElement('li');
+        li.className = 'task-sess';
+        li.textContent = `↳ ${own.map((x) => `${hhmm(x.s)}–${hhmm(x.e)}`).join(' · ')}`;
+        tl.appendChild(li);
+      }
+    }
+    detail.appendChild(tl);
+
+    // 沒掛在任何待辦上的專注（當時沒設目標，或那件事後來被刪了）
+    const loose = sessions.filter((x) => !claimed.has(x));
+    if (loose.length) {
+      const h = document.createElement('p');
+      h.className = 'day-sub';
+      h.textContent = dayTasks.length ? '其他專注' : '專注紀錄';
+      detail.appendChild(h);
       const ul = document.createElement('ul');
       ul.className = 'sess-list';
-      for (const x of sessions.sort((a, b) => a.s - b.s)) {
+      for (const x of loose) {
         const li = document.createElement('li');
         const time = document.createElement('span');
         time.className = 'sess-time';
@@ -157,32 +199,6 @@
       detail.appendChild(ul);
     }
 
-    // 這一天的待辦
-    const all = window.__pomo?.tasks?.() || [];
-    const dayTasks = all.filter((t) => t.date === picked || (t.doneAt && keyOf(new Date(t.doneAt)) === picked));
-    const tl = document.createElement('ul');
-    tl.className = 'day-tasks';
-    for (const t of dayTasks) {
-      const li = document.createElement('li');
-      li.className = `day-task${t.done ? ' done' : ''}`;
-      const cb = document.createElement('button');
-      cb.className = 'task-check';
-      cb.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5 10-11"/></svg>';
-      cb.setAttribute('aria-label', t.done ? '標記為未完成' : '標記為完成');
-      cb.addEventListener('click', () => window.toggleDone(t.id));
-      const tx = document.createElement('span');
-      tx.textContent = t.text;
-      li.append(cb, tx);
-      if (t.tomatoes > 0) {
-        const c = document.createElement('span');
-        c.className = 'task-count';
-        c.textContent = `🍅 ${t.tomatoes}`;
-        li.appendChild(c);
-      }
-      tl.appendChild(li);
-    }
-    detail.appendChild(tl);
-
     // 加一件事到這一天
     const form = document.createElement('form');
     form.className = 'day-add';
@@ -191,6 +207,7 @@
     input.maxLength = 80;
     input.placeholder = `加一件 ${m}/${d} 要做的事…`;
     input.autocomplete = 'off';
+    input.id = 'dayAddInput';
     const add = document.createElement('button');
     add.type = 'submit';
     add.className = 'add-btn';
@@ -200,9 +217,10 @@
     form.addEventListener('submit', (ev) => {
       ev.preventDefault();
       if (!input.value.trim()) return;
+      // addTask 會發 tasks-changed，renderDay 隨即整塊重建，
+      // 這個 input 會被換掉——要接回焦點，才能一件接一件輸入
       window.addTask(input.value, picked);
-      input.value = '';
-      renderDay();
+      q('#dayAddInput')?.focus();
     });
     detail.appendChild(form);
 
