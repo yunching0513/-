@@ -315,11 +315,22 @@ const XFADE = 4;          // 相鄰兩輪重疊的秒數
 const SCHEDULE_AHEAD = 6; // 提前多久排下一輪
 const trackCache = new Map();
 
+/* 單檔版把音檔內嵌成 data URI：直接解 base64，不走網路層，
+   免得被內容安全政策擋掉 */
+function dataUriToBuffer(uri) {
+  const bin = atob(uri.slice(uri.indexOf(',') + 1));
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out.buffer;
+}
+
 async function loadTrack(band) {
   if (trackCache.has(band)) return trackCache.get(band);
-  const p = fetch(TRACKS[band].src)
-    .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); })
-    .then((buf) => audioCtx.decodeAudioData(buf));
+  const src = TRACKS[band].src;
+  const bytes = src.startsWith('data:')
+    ? Promise.resolve(dataUriToBuffer(src))
+    : fetch(src).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); });
+  const p = bytes.then((buf) => audioCtx.decodeAudioData(buf));
   trackCache.set(band, p);
   p.catch(() => trackCache.delete(band)); // 失敗不要卡住之後的重試
   return p;
