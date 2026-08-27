@@ -27,6 +27,15 @@
           <path d="M20 13.5h-2.2a.8.8 0 0 0-.8.8v3.4a.8.8 0 0 0 .8.8h.8a1.4 1.4 0 0 0 1.4-1.4Z" fill="currentColor" stroke="none" class="cup"/>
         </svg>
       </button>
+      <button id="journalBtn" class="icon-btn" title="歷程（J）" aria-label="工作歷程">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3.5" y="5.5" width="17" height="15" rx="2.6"/>
+          <path d="M3.5 10h17M8.5 3.5v4M15.5 3.5v4"/>
+          <circle cx="8.4" cy="14" r="1.15" fill="currentColor" stroke="none"/>
+          <circle cx="12" cy="14" r="1.15" fill="currentColor" stroke="none"/>
+          <circle cx="15.6" cy="17.2" r="1.15" fill="currentColor" stroke="none"/>
+        </svg>
+      </button>
       <button id="pinBtn" class="icon-btn" title="釘選在最上層" aria-label="釘選在最上層" aria-pressed="false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
           <path class="pin-body" d="M9 10.6V7a3 3 0 1 1 6 0v3.6l2.05 2.9a.9.9 0 0 1-.74 1.5H7.69a.9.9 0 0 1-.74-1.5Z"/>
@@ -167,6 +176,36 @@
     </div>
   </section>
 
+  <!-- ———— 歷程 ———— -->
+  <section class="sheet sheet-tall" id="journalSheet" hidden aria-label="工作歷程">
+    <header class="sheet-head">
+      <h2>歷程</h2>
+      <button class="icon-btn close-sheet" title="關閉（Esc）" aria-label="關閉">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+          <path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>
+        </svg>
+      </button>
+    </header>
+    <div class="sheet-body">
+      <div class="cal-nav">
+        <button id="calPrev" class="cal-arrow" aria-label="上個月">‹</button>
+        <span id="calMonth" class="cal-month"></span>
+        <button id="calNext" class="cal-arrow" aria-label="下個月">›</button>
+      </div>
+      <p id="calSummary" class="cal-summary"></p>
+      <div id="calGrid" class="cal-grid"></div>
+      <div id="dayDetail" class="day-detail"></div>
+
+      <div class="row-sep"></div>
+      <p class="sheet-group">匯出到日曆<small class="group-note">.ics 可匯入 Google／Apple／Outlook</small></p>
+      <div class="ics-row">
+        <button id="icsMonth" class="pill-btn">這個月</button>
+        <button id="icsAll" class="pill-btn">全部紀錄</button>
+      </div>
+      <p class="task-tip">匯出的檔案每段專注是一個日曆事件，含起訖時間與當時的任務名稱。</p>
+    </div>
+  </section>
+
   <!-- ———— 設定 ———— -->
   <section class="sheet" id="sheet" hidden aria-label="設定">
     <header class="sheet-head">
@@ -272,7 +311,7 @@
 </main>
 
 <p class="web-hints" aria-hidden="true">
-  <kbd>空白鍵</kbd> 開始／暫停　<kbd>T</kbd> 待辦　<kbd>A</kbd> 音訊　<kbd>R</kbd> 重設　<kbd>S</kbd> 跳過　<kbd>⌘,</kbd> 設定
+  <kbd>空白鍵</kbd> 開始／暫停　<kbd>T</kbd> 待辦　<kbd>J</kbd> 歷程　<kbd>A</kbd> 音訊　<kbd>R</kbd> 重設　<kbd>S</kbd> 跳過　<kbd>⌘,</kbd> 設定
 </p>
 <p class="web-foot">
   待辦與紀錄只存在這台裝置的瀏覽器，不會上傳
@@ -281,5 +320,6 @@
 </p>
 
 <script src="app.js"></script>
+<script src="journal.js"></script>
 </body>
 </html>

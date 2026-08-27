@@ -28,7 +28,15 @@ const settings = Object.assign({}, DEFAULTS, store.get('pomo.settings.v1', {}));
 const saveSettings = () => store.set('pomo.settings.v1', settings);
 
 /* ———— 今日統計 ———— */
-const todayKey = () => new Date().toISOString().slice(0, 10);
+/* 用本地時間切日，不能用 toISOString()（那是 UTC，
+   在 UTC+8 會把凌晨到早上 8 點算成前一天） */
+const dayKey = (d = new Date()) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+};
+const todayKey = () => dayKey();
 let stats = store.get('pomo.stats.v1', {});
 function bumpToday(minutes) {
   const k = todayKey();
@@ -44,20 +52,24 @@ let tasks = store.get('pomo.tasks.v1', []);
 const saveTasks = () => store.set('pomo.tasks.v1', tasks);
 const activeTask = () => tasks.find((t) => t.active && !t.done) || null;
 
-function addTask(text) {
+function addTask(text, date = '') {
   const clean = text.trim();
-  if (!clean) return;
+  if (!clean) return null;
   const first = !tasks.some((t) => t.active && !t.done);
-  tasks.unshift({
+  const task = {
     id: `t${Date.now()}${Math.random().toString(36).slice(2, 6)}`,
     text: clean,
     done: false,
     active: first, // 第一件未完成的任務自動成為本回合目標
     tomatoes: 0,
     next: '',
-  });
+    date,          // 'YYYY-MM-DD'，空字串＝不綁日期
+    createdAt: Date.now(),
+  };
+  tasks.unshift(task);
   saveTasks();
   renderTasks();
+  return task;
 }
 
 function setActive(id) {
@@ -70,15 +82,18 @@ function toggleDone(id) {
   const t = tasks.find((x) => x.id === id);
   if (!t) return;
   t.done = !t.done;
+  t.doneAt = t.done ? Date.now() : null;
   if (t.done) t.active = false;
   saveTasks();
   renderTasks();
+  document.dispatchEvent(new CustomEvent('pomo:tasks-changed'));
 }
 
 function removeTask(id) {
   tasks = tasks.filter((t) => t.id !== id);
   saveTasks();
   renderTasks();
+  document.dispatchEvent(new CustomEvent('pomo:tasks-changed'));
 }
 
 /* ———— 思緒卸載盒 ———— */
@@ -99,6 +114,7 @@ const state = {
   endAt: null,
   remainMs: settings.focus * 60000,
   warmupDone: false, // 本段是否已做過卸載
+  segStart: null,    // 這一段第一次按下開始的時間戳（供歷程紀錄）
 };
 
 const durMs = (mode) => settings[mode] * 60000;
@@ -654,6 +670,7 @@ function setMode(mode, { autoStart = false } = {}) {
   state.endAt = null;
   state.remainMs = durMs(mode);
   state.warmupDone = false;
+  state.segStart = null;
   cancelScheduled();
   closeRest();
   renderMeta();
@@ -664,6 +681,7 @@ function setMode(mode, { autoStart = false } = {}) {
 
 function start() {
   ensureAudio();
+  if (!state.segStart) state.segStart = Date.now();
   state.endAt = Date.now() + remaining();
   state.running = true;
   renderMeta();
@@ -697,6 +715,7 @@ function reset() {
   state.running = false;
   state.endAt = null;
   state.warmupDone = false;
+  state.segStart = null;
   cancelScheduled();
   closeRest();
   renderMeta();
@@ -716,6 +735,16 @@ function finishSegment({ skipped = false } = {}) {
       bumpToday(settings.focus);
       const t = activeTask();
       if (t) { t.tomatoes += 1; saveTasks(); renderTasks(); }
+      // 歷程模組（journal.js）接手記錄，計時本身不依賴它
+      document.dispatchEvent(new CustomEvent('pomo:session', {
+        detail: {
+          start: state.segStart || (Date.now() - settings.focus * 60000),
+          end: Date.now(),
+          minutes: settings.focus,
+          taskId: t?.id || null,
+          taskText: t?.text || '',
+        },
+      }));
     }
     state.completed += 1;
     next = state.completed % LONG_EVERY === 0 ? 'long' : 'short';

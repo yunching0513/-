@@ -929,3 +929,175 @@ html.mobile .overlay { background: var(--bg); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ———— 歷程：月曆 ———— */
+.sheet-tall { max-height: 94%; }
+
+.cal-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0 2px;
+}
+
+.cal-arrow {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 20px;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  transition: color .16s ease, background-color .16s ease;
+}
+.cal-arrow:hover { color: var(--ink); background: var(--field); }
+
+.cal-month { font-size: 14px; font-weight: 600; letter-spacing: .04em; }
+
+.cal-summary {
+  font-size: 11px;
+  color: var(--faint);
+  letter-spacing: .03em;
+  text-align: center;
+  padding-bottom: 10px;
+}
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+
+.cal-dow {
+  font-size: 10px;
+  color: var(--faint);
+  text-align: center;
+  padding-bottom: 4px;
+}
+
+.cal-day {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  background: var(--field);
+  transition: background-color .16s ease, color .16s ease, transform .1s ease;
+}
+.cal-day:hover { transform: scale(1.06); }
+.cal-day:active { transform: scale(.96); }
+
+/* 當天蕃茄數的濃度：越深代表那天做得越多 */
+.cal-day[data-level="1"] { background: color-mix(in srgb, var(--c-focus) 16%, transparent); color: var(--ink); }
+.cal-day[data-level="2"] { background: color-mix(in srgb, var(--c-focus) 32%, transparent); color: var(--ink); }
+.cal-day[data-level="3"] { background: color-mix(in srgb, var(--c-focus) 55%, transparent); color: var(--on-accent); }
+.cal-day[data-level="4"] { background: var(--c-focus); color: var(--on-accent); }
+
+.cal-day.today { box-shadow: inset 0 0 0 1.5px var(--muted); }
+.cal-day.picked { box-shadow: inset 0 0 0 2px var(--ink); }
+
+.cal-count {
+  position: absolute;
+  right: 3px;
+  bottom: 2px;
+  font-size: 8.5px;
+  opacity: .75;
+}
+
+/* ———— 歷程：當日詳情 ———— */
+.day-detail { padding-top: 14px; }
+
+.day-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 8px;
+}
+.day-head h3 { font-size: 13.5px; font-weight: 600; }
+.day-head span { font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; }
+
+.sess-list, .day-tasks { list-style: none; display: flex; flex-direction: column; gap: 1px; }
+
+.sess-list li {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 5px 4px;
+  border-radius: 7px;
+  background: var(--field);
+  margin-bottom: 2px;
+}
+.sess-time {
+  flex: 0 0 auto;
+  font-size: 10.5px;
+  color: color-mix(in srgb, var(--accent) 70%, var(--muted));
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .01em;
+}
+.sess-text {
+  font-size: 12px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.day-task {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px;
+  font-size: 12.5px;
+}
+.day-task.done span { color: var(--faint); text-decoration: line-through; }
+.day-task span { flex: 1 1 auto; min-width: 0; word-break: break-word; }
+
+.day-add { display: flex; gap: 6px; margin: 10px 0 6px; }
+.day-add input {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: var(--field);
+  border-radius: 9px;
+  padding: 8px 11px;
+  font-size: 12.5px;
+}
+.day-add input::placeholder { color: var(--faint); }
+.day-add input:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 32%, transparent);
+}
+.day-add .add-btn { width: 32px; height: 32px; font-size: 15px; border-radius: 9px; }
+
+.ics-row { display: flex; gap: 8px; padding: 4px 0 2px; }
+.ics-row .pill-btn { flex: 1 1 0; padding: 9px 10px; font-size: 12.5px; }
+
+.text-btn:disabled { opacity: .4; pointer-events: none; }
+
+/* ———— 提示訊息 ———— */
+.toast {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  transform: translate(-50%, 12px);
+  z-index: 30;
+  background: var(--ink);
+  color: var(--bg);
+  font-size: 12px;
+  padding: 9px 16px;
+  border-radius: 999px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .22);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .24s ease, transform .24s ease;
+  max-width: 88%;
+  text-align: center;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+html.mobile .cal-day { font-size: 13px; }
+html.mobile .day-add input { font-size: 16px; }

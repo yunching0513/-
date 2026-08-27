@@ -74,12 +74,20 @@
     <li>待辦事項與每件事累積的專注次數</li>
     <li>你在「思緒卸載盒」寫下的內容</li>
     <li>每段專注結束時記下的「下次起點」</li>
+    <li>每日的專注歷程（每段專注的起訖時間與當時的任務）</li>
     <li>今日完成的專注次數與分鐘數</li>
     <li>你的偏好設定（時長、音景、開關）</li>
   </ul>
   <p>
     以上全部儲存在裝置本機（行動版為 App 的本機儲存空間，網頁版為瀏覽器的
     localStorage）。刪除 App 或清除瀏覽器資料，這些內容就會一併消失，且無法復原。
+  </p>
+
+  <h2>匯出檔案</h2>
+  <p>
+    你可以把專注歷程匯出成 <code>.ics</code> 日曆檔。檔案是在你的裝置上產生的，
+    存到哪裡由你決定，App 不會替你上傳到任何地方。之後你要不要把它匯入
+    Google 日曆或 Apple 行事曆，是你自己的操作，與本 App 無關。
   </p>
 
   <h2>網路連線</h2>
@@ -121,11 +129,18 @@
     <h2>Data stored on your device</h2>
     <p>
       Tasks and their pomodoro counts, the notes you write in the "put it down" box,
-      the "where to pick up next" lines, today's focus statistics, and your preferences.
+      the "where to pick up next" lines, your daily focus history, today's statistics,
+      and your preferences.
       All of it lives in local device storage. Deleting the app removes it permanently.
     </p>
 
-    <h2>Network</h2>
+    <h2>Exported files</h2>
+    <p>
+      You can export your focus history as an .ics calendar file. It is generated on your
+      device and saved wherever you choose. The app never uploads it anywhere.
+    </p>
+
+  <h2>Network</h2>
     <p>
       The app works fully offline and makes no network requests. It contains no
       third-party SDKs, analytics or ad services. Focus sounds are synthesised on the

@@ -155,7 +155,8 @@ npx tauri ios build --export-method app-store-connect
 
 2. **功能過於簡單**（Apple Guideline 4.2 Minimum Functionality）
    計時器類 App 常被以此拒絕。若遇到，強調 Flowmato 不只是計時器：
-   有待辦與專注的連動、思緒卸載、下次起點記錄、休息鎖定、三層可疊加音景。
+   有待辦與專注的連動、思緒卸載、下次起點記錄、休息鎖定、三層可疊加音景，
+   以及**完整的工作歷程與日曆匯出**（月曆檢視、每日專注紀錄、.ics 匯出）。
    截圖已針對這點設計。
 
 3. **隱私權政策網址無法開啟**

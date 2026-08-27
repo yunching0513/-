@@ -43,6 +43,9 @@ Flowmato 是一個安靜的專注計時器。它的設計只圍繞一件事：�
 ■ 結束時，留一句話給下次的自己
 每段專注結束時，可以寫下「下次從哪裡接續」。它會留在那件待辦底下，下次打開就知道從哪裡開始。
 
+■ 看得見自己把時間花在哪
+每完成一段專注都會記進歷程。月曆上顏色越深代表那天做得越多，點任一天就能看到幾點到幾點、做了哪件事。想放進自己的日曆也可以——一鍵匯出 .ics，每段專注變成一個日曆事件，Google 日曆、Apple 行事曆、Outlook 都能匯入。待辦也可以指定日期，在歷程頁直接規劃某一天要做什麼。
+
 ■ 休息就好好休息
 休息時間會鎖住畫面，用一個緩慢的呼吸引導陪你度過——吸氣四秒、屏住兩秒、吐氣六秒。這幾分鐘不是拿來滑手機的。想提早結束隨時可以。
 
@@ -113,6 +116,9 @@ Pick one item from your to-do list as this round's goal and it sits above the ti
 ■ Leave a note for next time
 When a focus block ends, write one line about where to pick up. It stays under that task, waiting for you.
 
+■ See where your time actually went
+Every finished block is recorded. The calendar shades each day by how much you did — tap any day to see the exact blocks, when they ran and what you were working on. Export it as an .ics file and every focus block becomes a calendar event you can import into Google Calendar, Apple Calendar or Outlook. Tasks can be assigned to a date and planned right from the history view.
+
 ■ Actually rest during breaks
 Breaks lock the screen and give you a slow breathing guide — in for four, hold for two, out for six. These minutes aren't for scrolling. You can end early whenever you want.
 
@@ -142,7 +148,7 @@ No account, no cloud, no analytics, no ads. Tasks, stats and settings live on th
 | 粗俗語言 | 無 |
 | 管制物品（酒精／菸草／毒品） | 無 |
 | 賭博 | 無 |
-| 使用者生成內容／可分享 | 無（待辦僅存在本機，無法分享或上傳） |
+| 使用者生成內容／可分享 | 無（待辦與歷程僅存在本機；匯出的 .ics 由使用者自行選擇存放位置） |
 | 收集個人資料 | **否** |
 | 使用廣告識別碼 | 否 |
 | 內含廣告 | 否 |
