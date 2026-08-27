@@ -247,7 +247,15 @@ html.tauri .web-foot { display: none; }
   justify-content: flex-end;
 }
 
-.win-actions { display: flex; gap: 2px; padding: 10px 10px 0 0; }
+/* 只有按鈕群組浮在遮罩之上：面板開著時仍能直接切到另一個面板，
+   但標題列其餘區域維持可點擊關閉 */
+.win-actions {
+  position: relative;
+  z-index: 12;
+  display: flex;
+  gap: 2px;
+  padding: 10px 10px 0 0;
+}
 
 .icon-btn {
   width: 30px;
@@ -428,6 +436,8 @@ body.running .play-btn .ic-play { display: none; }
 body.running .play-btn .ic-pause { display: block; }
 
 /* ———— 今日統計 ———— */
+/* 注意：.today 是沒有前綴的泛用名稱，其他地方要標「今天」請用專屬 class
+   （月曆格子就曾誤中這條的 padding-bottom 而讓日期數字上移 9px） */
 .today {
   flex: 0 0 auto;
   text-align: center;
@@ -997,7 +1007,7 @@ html.mobile .overlay { background: var(--bg); }
 .cal-day[data-level="3"] { background: color-mix(in srgb, var(--c-focus) 55%, transparent); color: var(--on-accent); }
 .cal-day[data-level="4"] { background: var(--c-focus); color: var(--on-accent); }
 
-.cal-day.today { box-shadow: inset 0 0 0 1.5px var(--muted); }
+.cal-day.cal-today { box-shadow: inset 0 0 0 1.5px var(--muted); }
 .cal-day.picked { box-shadow: inset 0 0 0 2px var(--ink); }
 
 .cal-count {

@@ -89,7 +89,7 @@
       const cell = document.createElement('button');
       cell.className = 'cal-day';
       cell.type = 'button';
-      if (k === todayK()) cell.classList.add('today');
+      if (k === todayK()) cell.classList.add('cal-today');
       if (k === picked) cell.classList.add('picked');
       // 濃度分四級，一眼看出哪幾天真的有做事
       if (count > 0) cell.dataset.level = count >= 8 ? '4' : count >= 5 ? '3' : count >= 3 ? '2' : '1';

@@ -896,8 +896,33 @@ setInterval(() => {
 })();
 
 /* ———— 面板 ———— */
+/* 逐一列舉面板很容易漏掉新增的（歷程面板就曾因此關不掉），改為動態查詢 */
+const allSheets = () => document.querySelectorAll('.sheet');
+
+/* 收合是延遲隱藏。若期間又被開啟，必須取消那個 timer——否則它會把剛開的東西關掉
+   （背景遮罩就是這樣一直沒顯示出來：closeSheets 的 setTimeout(0) 跑在
+    requestAnimationFrame 之前，把同步設好的 hidden=false 又改回 true）*/
+const sheetTimers = new WeakMap();
+let backdropTimer = null;
+
+function hideSheet(node, instant) {
+  if (node.hidden) return;
+  node.classList.remove('show');
+  clearTimeout(sheetTimers.get(node));
+  sheetTimers.set(node, setTimeout(() => {
+    node.hidden = true;
+    sheetTimers.delete(node);
+  }, instant ? 0 : 340));
+}
+
 function openSheet(node) {
-  closeSheets(true);
+  for (const s of allSheets()) if (s !== node) hideSheet(s, true);
+
+  clearTimeout(sheetTimers.get(node));
+  sheetTimers.delete(node);
+  clearTimeout(backdropTimer);
+  backdropTimer = null;
+
   node.hidden = false;
   el.backdrop.hidden = false;
   requestAnimationFrame(() => {
@@ -907,16 +932,13 @@ function openSheet(node) {
 }
 
 function closeSheets(instant) {
-  for (const s of [el.sheet, el.taskSheet]) {
-    if (s.hidden) continue;
-    s.classList.remove('show');
-    setTimeout(() => { s.hidden = true; }, instant ? 0 : 340);
-  }
+  for (const s of allSheets()) hideSheet(s, instant);
   el.backdrop.classList.remove('show');
-  setTimeout(() => { el.backdrop.hidden = true; }, instant ? 0 : 340);
+  clearTimeout(backdropTimer);
+  backdropTimer = setTimeout(() => { el.backdrop.hidden = true; }, instant ? 0 : 340);
 }
 
-const sheetOpen = () => !el.sheet.hidden || !el.taskSheet.hidden;
+const sheetOpen = () => [...allSheets()].some((s) => !s.hidden);
 
 function syncSheetUI() {
   document.querySelectorAll('.stepper').forEach((st) => {
