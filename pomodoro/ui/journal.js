@@ -4,6 +4,9 @@
 (function () {
   const TAURI = window.__TAURI__ || null;
   const q = (s) => document.querySelector(s);
+  /* 內嵌在 iframe（例如 Artifact 檢視器）時，瀏覽器不會允許頁面觸發下載，
+     a[download] 與 blob: 都會靜默失效 —— 這種情況改成把內容攤在畫面上讓使用者複製 */
+  const EMBEDDED = (() => { try { return window.top !== window.self; } catch { return true; } })();
 
   /* ———— 資料層 ———— */
   const KEY = 'pomo.history.v1';
@@ -286,6 +289,9 @@
       } catch { /* 落到下面的下載方式 */ }
     }
 
+    // 內嵌環境不能下載，改為顯示內容供複製
+    if (EMBEDDED) { showICSText(ics, filename, list.length); return; }
+
     // 網頁版與其他情況：直接下載
     try {
       const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
@@ -301,6 +307,52 @@
     } catch {
       toast('這個環境無法下載檔案');
     }
+  }
+
+  /* 內嵌環境的降級：把 .ics 內容攤開讓使用者自己複製存檔 */
+  function showICSText(ics, filename, count) {
+    let box = q('#icsFallback');
+    if (!box) {
+      box = document.createElement('section');
+      box.id = 'icsFallback';
+      box.className = 'overlay';
+      box.hidden = true;
+      box.innerHTML = `
+        <div class="overlay-inner">
+          <p class="overlay-eyebrow">匯出到日曆</p>
+          <h2 class="overlay-title">複製下面的內容</h2>
+          <p class="overlay-sub" id="icsHint"></p>
+          <textarea id="icsText" class="dump-text" rows="7" readonly></textarea>
+          <div class="overlay-actions">
+            <button id="icsCopy" class="pill-btn primary">複製</button>
+            <button id="icsClose" class="text-btn">關閉</button>
+          </div>
+          <p class="task-tip" style="text-align:left">
+            貼進純文字編輯器，存成 <b id="icsName"></b>（副檔名要是 .ics），
+            再用 Google 日曆的「匯入」或 Apple 行事曆的「檔案 → 輸入」載入。
+          </p>
+        </div>`;
+      document.querySelector('.app').appendChild(box);
+      box.querySelector('#icsClose').addEventListener('click', () => {
+        box.classList.remove('show');
+        setTimeout(() => { box.hidden = true; }, 300);
+      });
+      box.querySelector('#icsCopy').addEventListener('click', async () => {
+        const ta = box.querySelector('#icsText');
+        try {
+          await navigator.clipboard.writeText(ta.value);
+          toast('已複製到剪貼簿');
+        } catch {
+          ta.select();               // 剪貼簿被擋時退回手動選取
+          toast('請按 ⌘C／Ctrl+C 複製');
+        }
+      });
+    }
+    box.querySelector('#icsText').value = ics;
+    box.querySelector('#icsName').textContent = filename;
+    box.querySelector('#icsHint').textContent = `${count} 段專注紀錄。這個畫面裡無法直接下載檔案。`;
+    box.hidden = false;
+    requestAnimationFrame(() => box.classList.add('show'));
   }
 
   /* 匯出範圍 */
