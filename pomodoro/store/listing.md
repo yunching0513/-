@@ -50,10 +50,11 @@ Flowmato 是一個安靜的專注計時器。它的設計只圍繞一件事：�
 休息時間會鎖住畫面，用一個緩慢的呼吸引導陪你度過——吸氣四秒、屏住兩秒、吐氣六秒。這幾分鐘不是拿來滑手機的。想提早結束隨時可以。
 
 ■ 三層音景，隨你疊加
+・專注音樂：三首無人聲的樂曲，分別適合硬核分析、吸收閱讀、發散思考
 ・環境音：雨聲、海浪、棕噪音，蓋掉環境裡的雜訊
 ・和聲鋪底：沒有旋律起伏的持續織體，不會勾走注意力
-・節拍：左右耳的固定頻率差（需要戴耳機）
-三層各自開關、可以疊在一起，休息時會自動換成比較舒緩的組合。全部即時合成，不佔空間也不需要連網。
+三層各自開關、可以疊在一起，休息時會自動換成比較舒緩的組合。
+樂曲會無縫循環，接縫聽不出來，25 分鐘不會中斷。全部內建，不需要連網。
 
 ■ 你的資料只在你的裝置裡
 沒有帳號、沒有雲端、沒有分析工具、沒有廣告。待辦、統計、設定全部存在這支手機裡，App 不會把任何東西傳出去。
@@ -123,10 +124,11 @@ Every finished block is recorded. The calendar shades each day by how much you d
 Breaks lock the screen and give you a slow breathing guide — in for four, hold for two, out for six. These minutes aren't for scrolling. You can end early whenever you want.
 
 ■ Three sound layers
+・Focus music: three instrumental pieces — one for hard analysis, one for reading, one for open thinking
 ・Ambience: rain, ocean waves, or brown noise to cover the room
 ・Harmonic bed: a sustained texture with no melody to pull at you
-・Beats: a steady frequency offset between your ears (headphones needed)
-Each layer toggles independently and they stack. Breaks switch to a gentler mix automatically. Everything is synthesised on the fly — no audio files, no network.
+Each layer toggles independently and they stack. Breaks switch to a gentler mix automatically.
+Tracks loop seamlessly, so a 25-minute block never breaks. Everything is bundled — no network needed.
 
 ■ Your data stays on your device
 No account, no cloud, no analytics, no ads. Tasks, stats and settings live on this phone. Nothing is ever sent anywhere.
@@ -181,9 +183,9 @@ App 沒有帳號系統、沒有分析、沒有廣告 SDK、沒有網路請求。
 This app works entirely offline. There is no account, no login, no network request,
 and no analytics. All data (tasks, statistics, settings) is stored locally on the device.
 
-The audio feature generates tones and noise in real time using the Web Audio API;
-no audio files are bundled or downloaded. It is offered as a background sound
-option for concentration, and the app makes no health or medical claims.
+The audio feature plays bundled instrumental tracks and generates ambience in real time
+using the Web Audio API. Nothing is downloaded at runtime. It is offered as a background
+sound option for concentration, and the app makes no health or medical claims.
 
 Notification permission is used only to alert the user when a focus or break
 interval ends.

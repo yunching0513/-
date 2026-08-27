@@ -299,10 +299,82 @@ function chime(kind) {
 
 /* 三層可獨立開關：雙耳節拍 / 環境音 / 和聲鋪底 */
 const layers = { beat: null, amb: null, pad: null };
-const LAYER_VOL = { beat: 0.15, amb: 0.32, pad: 0.10 };
+const LAYER_VOL = { beat: 0.34, amb: 0.32, pad: 0.10 };
 
 const BEAT_HZ = { beta: 18, alpha: 8, theta: 6 };
 const CARRIER = 220; // A3 載波，低頻聽感柔和
+
+/* 三首專注樂曲。head / tail 是實測出來的素材本身淡入淡出長度，
+   循環時要跳過，否則每一輪接縫都會聽到音量掉下去又升起來。 */
+const TRACKS = {
+  beta:  { src: 'audio/beta.mp3',  head: 0.0, tail: 5.0 },
+  alpha: { src: 'audio/alpha.mp3', head: 6.0, tail: 5.0 },
+  theta: { src: 'audio/theta.mp3', head: 4.0, tail: 7.0 },
+};
+const XFADE = 4;          // 相鄰兩輪重疊的秒數
+const SCHEDULE_AHEAD = 6; // 提前多久排下一輪
+const trackCache = new Map();
+
+async function loadTrack(band) {
+  if (trackCache.has(band)) return trackCache.get(band);
+  const p = fetch(TRACKS[band].src)
+    .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); })
+    .then((buf) => audioCtx.decodeAudioData(buf));
+  trackCache.set(band, p);
+  p.catch(() => trackCache.delete(band)); // 失敗不要卡住之後的重試
+  return p;
+}
+
+/* 等功率淡化：兩段線性淡化重疊會在中點掉 3dB，sin/cos 曲線才不會凹 */
+function fadeCurve(param, at, dur, dir) {
+  const N = 33;
+  const arr = new Float32Array(N);
+  for (let i = 0; i < N; i++) {
+    const t = i / (N - 1);
+    arr[i] = dir === 'in' ? Math.sin((t * Math.PI) / 2) : Math.cos((t * Math.PI) / 2);
+  }
+  try { param.setValueCurveAtTime(arr, at, dur); } catch { param.value = dir === 'in' ? 1 : 0; }
+}
+
+/* 把一首曲子接成無限循環：每輪只播有效區間，前後輪重疊 XFADE 秒 */
+function loopTrack(buffer, meta, dest) {
+  const ctx = audioCtx;
+  const segStart = Math.min(meta.head, buffer.duration - 1);
+  const segEnd = Math.max(segStart + 2 * XFADE + 1, buffer.duration - meta.tail);
+  const segLen = Math.min(segEnd, buffer.duration) - segStart;
+  const step = segLen - XFADE; // 下一輪提前 XFADE 秒進來
+
+  const live = new Set();
+  let nextAt = ctx.currentTime + 0.06;
+  let timer = null;
+
+  function schedule(at) {
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    const g = ctx.createGain();
+    g.gain.value = 0;
+    fadeCurve(g.gain, at, XFADE, 'in');
+    fadeCurve(g.gain, at + segLen - XFADE, XFADE, 'out');
+    src.connect(g).connect(dest);
+    src.start(at, segStart, segLen);
+    src.onended = () => live.delete(src);
+    live.add(src);
+    return at + step;
+  }
+
+  nextAt = schedule(nextAt);
+  timer = setInterval(() => {
+    if (nextAt - ctx.currentTime < SCHEDULE_AHEAD) nextAt = schedule(nextAt);
+  }, 1000);
+
+  return {
+    stop(at) {
+      clearInterval(timer);
+      for (const s of live) { try { s.stop(at); } catch { /* 已結束 */ } }
+      live.clear();
+    },
+  };
+}
 
 /* 和弦：專注用小調（沉靜不搶戲），休息用大調（開闊放鬆） */
 const CHORD = {
@@ -339,11 +411,10 @@ function noiseBuffer(kind) {
   return buf;
 }
 
-function buildBeat(band) {
+/* 合成雙耳節拍：音檔載不到時的後備（例如頁面沒有附上 audio/） */
+function attachSynthBeat(band, gain) {
   const ctx = audioCtx;
   const merger = ctx.createChannelMerger(2);
-  const gain = ctx.createGain();
-  gain.gain.value = 0.0001;
   const nodes = [CARRIER, CARRIER + BEAT_HZ[band]].map((freq, i) => {
     const osc = ctx.createOscillator();
     osc.type = 'sine';
@@ -352,8 +423,32 @@ function buildBeat(band) {
     osc.start();
     return osc;
   });
-  merger.connect(gain).connect(mix);
-  return { gain, nodes };
+  merger.connect(gain);
+  return nodes;
+}
+
+function buildBeat(band) {
+  const ctx = audioCtx;
+  const gain = ctx.createGain();
+  gain.gain.value = 0.0001;
+  gain.connect(mix);
+  const layer = { gain, nodes: [], loop: null };
+
+  // 音檔是非同步載入的，期間可能已經換層或停播，故每次都要確認 layer 還在線上
+  loadTrack(band)
+    .then((buf) => {
+      if (layers.beat !== layer) return;
+      layer.loop = loopTrack(buf, TRACKS[band], gain);
+      layer.mode = 'track';
+    })
+    .catch(() => {
+      if (layers.beat !== layer) return;
+      layer.nodes = attachSynthBeat(band, gain);
+      layer.mode = 'synth'; // 沒有音檔時仍有聲音可聽
+    });
+
+  layer.dispose = (at) => { layer.loop?.stop(at); };
+  return layer;
 }
 
 function buildAmbience(kind) {
@@ -446,6 +541,7 @@ function killLayer(name) {
     l.gain.gain.exponentialRampToValueAtTime(0.0001, stopAt);
   } catch { /* 節點已停止 */ }
   for (const n of l.nodes) { try { n.stop(stopAt + 0.05); } catch { /* 已停止 */ } }
+  l.dispose?.(stopAt + 0.05);
 }
 
 function syncLayer(name, key, build) {
@@ -978,6 +1074,7 @@ window.__pomo = {
   audio: () => ({
     ctx: audioCtx?.state || null,
     beat: layers.beat?.key || null,
+    beatMode: layers.beat?.mode || 'loading',
     amb: layers.amb?.key || null,
     pad: layers.pad?.key || null,
   }),
