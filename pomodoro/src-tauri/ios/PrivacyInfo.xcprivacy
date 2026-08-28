@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  隱私權資訊清單（Privacy Manifest）。
+
+  Apple 會靜態掃描上傳的 binary，用到「必須說明理由的 API」卻沒有宣告的話，
+  上傳後會收到 ITMS-91053 的信，新送審會被擋下來。
+  Flowmato 本身不收集任何資料，但 Rust 標準函式庫與 WebView 會碰到下面三類 API，
+  所以要照實宣告。
+
+  這個檔必須放在 App bundle 的最外層。Tauri 產生 Xcode 專案時不會自動帶進去，
+  需要在 Xcode 裡手動加入 target（步驟見 docs/PUBLISHING.md）。
+-->
+<plist version="1.0">
+<dict>
+  <!-- 沒有追蹤，也沒有任何追蹤網域 -->
+  <key>NSPrivacyTracking</key>
+  <false/>
+  <key>NSPrivacyTrackingDomains</key>
+  <array/>
+
+  <!-- 不收集任何資料：待辦、歷程、設定全部只寫在裝置本機 -->
+  <key>NSPrivacyCollectedDataTypes</key>
+  <array/>
+
+  <key>NSPrivacyAccessedAPITypes</key>
+  <array>
+    <dict>
+      <!-- 檔案時間戳記：Rust std::fs 與匯出 .ics 時的檔案操作 -->
+      <key>NSPrivacyAccessedAPIType</key>
+      <string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+      <key>NSPrivacyAccessedAPITypeReasons</key>
+      <array>
+        <string>C617.1</string>
+        <string>3B52.1</string>
+      </array>
+    </dict>
+    <dict>
+      <!-- UserDefaults：WKWebView 與系統元件會讀寫本 App 自己的偏好設定 -->
+      <key>NSPrivacyAccessedAPIType</key>
+      <string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+      <key>NSPrivacyAccessedAPITypeReasons</key>
+      <array>
+        <string>CA92.1</string>
+      </array>
+    </dict>
+    <dict>
+      <!-- 系統開機時間：計時需要單調時鐘來量測經過的時間（Rust Instant） -->
+      <key>NSPrivacyAccessedAPIType</key>
+      <string>NSPrivacyAccessedAPICategorySystemBootTime</string>
+      <key>NSPrivacyAccessedAPITypeReasons</key>
+      <array>
+        <string>35F9.1</string>
+      </array>
+    </dict>
+  </array>
+</dict>
+</plist>

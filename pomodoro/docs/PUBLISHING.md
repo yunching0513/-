@@ -31,6 +31,9 @@ pomodoro/
 │   ├── play-feature-graphic-1024x500.png   Play 功能圖片（必填）
 │   ├── screenshots/                        五張 1290×2796，兩邊商店都可用
 │   └── listing.md                          中英文名稱、描述、關鍵字、分級答案、送審備註
+├── src-tauri/Info.ios.plist                iOS Info.plist 覆寫（Tauri 自動合併）
+├── src-tauri/ios/PrivacyInfo.xcprivacy     隱私權資訊清單（需在 Xcode 手動加入）
+├── scripts/preflight-ios.mjs               送審前自動檢查
 ├── src-tauri/icons/ios/                    iOS AppIcon 全尺寸（15 個）
 ├── src-tauri/icons/android/                Android 五種密度 + adaptive icon 圖層
 └── ui/privacy.html                         隱私權政策（兩邊都強制要求公開網址）
@@ -93,54 +96,153 @@ keytool -genkey -v -keystore flowmato-upload.jks \
 
 ---
 
-## 三、App Store
+## 三、App Store（用 Xcode 送審）
 
-### 1. 開帳號
-1. 前往 <https://developer.apple.com/programs/> 註冊 Apple Developer Program（US$99/年）
+> 這一節每一步都要在**你自己的 Mac** 上、用**你自己的 Apple ID** 操作。
+> 程式端該備妥的都備妥了，開始之前先跑一次自動檢查（見 3-0）。
+
+### 3-0. 先跑送審前檢查
+
+```bash
+cd pomodoro
+node scripts/preflight-ios.mjs
+```
+
+它會檢查那些「上傳之後才會被 Apple 退回」的東西：圖示尺寸與 alpha 色版、
+截圖規格、文案長度、隱私權資訊清單的理由代碼、版本號一致性。
+**出現 ✗ 就先修掉再往下走**，不然會白跑一趟上傳流程。
+
+### 3-1. 開發者帳號（約 1–2 天）
+
+1. <https://developer.apple.com/programs/> 加入 Apple Developer Program，US$99／年
 2. 個人身分即可，需通過 Apple 的身分驗證
-3. 在 App Store Connect 同意所有合約，並填寫稅務與銀行資訊（免費 App 也要填稅務表）
+3. 進 <https://appstoreconnect.apple.com> →「協議、稅務和銀行業務」
+   **同意所有合約**，並填完稅務表
+   （免費 App 也要填，沒填的話 App 會卡在「準備銷售」永遠不上架）
 
-### 2. 在你的 Mac 上準備
-需要 Xcode（App Store 免費下載）、Rust、Node 22+：
+### 3-2. Mac 上的環境
+
+```bash
+xcode-select --install                 # 命令列工具
+brew install rustup node               # 沒有的話
+rustup target add aarch64-apple-ios    # 實機架構
+sudo gem install cocoapods             # Tauri iOS 需要
+```
+
+Xcode 從 App Store 安裝，第一次開啟要讓它裝完元件。
+
+### 3-3. 取得原始碼並產生 Xcode 專案
+
 ```bash
 git clone https://github.com/yunching0513/-.git
 cd -/pomodoro
+git checkout claude/pomodoro-focus-tool-er00mo
 npm install
 npx tauri ios init
 ```
 
-### 3. 設定簽章
+`ios init` 會在 `src-tauri/gen/apple/` 產生 Xcode 專案。
+`src-tauri/Info.ios.plist` 會自動合併進去，不用另外處理。
+
+> **提醒**：`gen/apple/` 是產生出來的。等一下在 Xcode 裡做的設定（3-5、3-6）
+> 只要重跑 `tauri ios init` 就會不見。第一次設定完之後，建議把 `gen/apple/`
+> 提交進 git（`.gitignore` 已經幫你排除掉裡面的建置產物）。
+
+### 3-4. 打開專案
+
 ```bash
 open src-tauri/gen/apple/Flowmato.xcodeproj
 ```
-在 Xcode 中：
-1. 選 **Flowmato_iOS** target → **Signing & Capabilities**
-2. 勾選 **Automatically manage signing**
-3. **Team** 選你的開發者帳號 → Xcode 會自動建立憑證與 provisioning profile
-4. 確認 **Bundle Identifier** 是 `tw.yunching.flowmato`
 
-（也可以把 Team ID 寫進 `src-tauri/tauri.conf.json` 的 `bundle.iOS.developmentTeam`，
-之後就能用指令建置。）
+### 3-5. 簽章與裝置
 
-### 4. 建置並上傳
-```bash
-npx tauri ios build --export-method app-store-connect
-```
-產出的 `.ipa` 在 `src-tauri/gen/apple/build/`。
-用 **Transporter**（App Store 免費下載）上傳，或在 Xcode 用 Product → Archive → Distribute App。
+左側點最上面的專案 → **TARGETS** 選 `Flowmato_iOS`：
 
-### 5. 建立商店資訊
-在 App Store Connect 建立 App，依 `store/listing.md` 填入：
-- 名稱、副標題、關鍵字、描述、宣傳文字
-- 上傳 `screenshots/` 的圖（6.7 吋必填，其他尺寸 Apple 會自動縮放）
-- 上傳 `appstore-icon-1024.png`
-- 隱私權政策網址
-- **App 隱私**：全部選「不收集資料」
-- **分級**：依 listing.md 的表格填，預期 4+
-- **審查備註**：把 listing.md 最後那段英文貼上（說明離線運作、無帳號、通知用途）
+| 分頁 | 要做的事 |
+|---|---|
+| **Signing & Capabilities** | 勾 **Automatically manage signing**；**Team** 選你的帳號；確認 Bundle Identifier 是 `tw.yunching.flowmato` |
+| **General → Supported Destinations** | **移除 iPad**，只留 iPhone |
 
-### 6. 送審
-選擇建置版本 → 提交審查。通常 24–48 小時有結果。
+**為什麼移除 iPad**：目前版面是為手機直向設計的，在 iPad 上會變成一個
+小小的計時器浮在一大片空白中間，容易被審查以「未針對該裝置最佳化」挑剔；
+而且宣告支援 iPad 就必須另外提供 iPad 截圖。留 iPhone 就好，iPad 使用者
+仍可用相容模式安裝。之後要正式支援 iPad，再補一套平板版面。
+
+Xcode 會自動幫你建立憑證與 provisioning profile，不需要手動去開發者網站產生。
+
+### 3-6. 加入隱私權資訊清單（**這步不能跳過**）
+
+Apple 會掃描上傳的 binary。用到「必須說明理由的 API」卻沒宣告的話，
+上傳後會收到 **ITMS-91053** 通知信，送審會被擋下來。Rust 標準函式庫與
+WebView 一定會碰到這些 API，所以檔案已經幫你寫好了，只差放進專案：
+
+1. Finder 打開 `pomodoro/src-tauri/ios/`
+2. 把 **`PrivacyInfo.xcprivacy`** 拖進 Xcode 左側的 `Flowmato_iOS` 群組
+3. 彈出的對話框：
+   - ✅ 勾 **Copy items if needed**
+   - ✅ **Add to targets** 勾 `Flowmato_iOS`
+4. 確認方式：選 target →**Build Phases → Copy Bundle Resources**，
+   清單裡要看得到 `PrivacyInfo.xcprivacy`
+
+裡面宣告了三類 API 與理由代碼（檔案時間戳記 `C617.1`／`3B52.1`、
+UserDefaults `CA92.1`、系統開機時間 `35F9.1`），以及「不追蹤、不收集任何資料」。
+
+### 3-7. 在 App Store Connect 建立 App
+
+<https://appstoreconnect.apple.com> → **我的 App** → **＋** → **新增 App**
+
+| 欄位 | 填什麼 |
+|---|---|
+| 平台 | iOS |
+| 名稱 | `Flowmato 心流鐘` |
+| 主要語言 | 繁體中文 |
+| 套件識別碼 | 選 `tw.yunching.flowmato`（3-5 之後才會出現在清單裡） |
+| SKU | 隨便一個自己看得懂的字串，例如 `flowmato-001` |
+
+### 3-8. 建置並上傳
+
+回到 Xcode：
+
+1. 上方裝置選單選 **Any iOS Device (arm64)**
+   （選模擬器的話 Archive 選項會是灰的）
+2. 選單 **Product → Archive**
+   第一次會跑滿久，Rust 要編譯 release
+3. 跑完會跳出 **Organizer**，選剛剛那個 Archive → **Distribute App**
+4. 依序選 **App Store Connect** → **Upload** → 一路 Next
+5. 簽章方式選 **Automatically manage signing**
+6. 按 **Upload**，等它跑完
+
+上傳成功後，App Store Connect 那邊要再花 **10–30 分鐘**處理，
+建置版本才會出現在「TestFlight」與版本頁的「建置版本」欄位。
+
+> 有問題的話 Apple 會寄信來（寄件人 App Store Connect）。
+> 最常見的是 ITMS-91053（隱私權清單，見 3-6）。
+
+### 3-9. 填商店資訊
+
+在版本頁面依 `store/listing.md` 填：
+
+- **名稱／副標題／關鍵字／描述／宣傳文字** — 直接複製
+- **截圖** — 上傳 `store/screenshots/` 的五張（6.9 吋，1290×2796）
+- **App 圖示** — `store/appstore-icon-1024.png`
+- **隱私權政策網址** — `https://yunching0513.github.io/-/privacy.html`
+  （**要先啟用 GitHub Pages，並自己點開確認打得開**）
+- **App 隱私**（左側選單獨立頁面）— 選「**不收集資料**」
+- **年齡分級** — 依 listing.md 的問卷答案填，預期 4+
+- **建置版本** — 選 3-8 上傳的那一版
+- **審查備註** — 貼 listing.md 最後那段英文（說明離線運作、無帳號、通知用途）
+
+### 3-10. 送審
+
+按右上角 **加入審查** → **提交以供審查**。通常 24–48 小時有結果。
+
+### 3-11. 之後要更新版本
+
+1. 改 `src-tauri/tauri.conf.json` 的 `version`（例如 `1.0.1`）
+   —— 每次上傳都必須比上一次大，否則會被退
+2. `node scripts/preflight-ios.mjs` 再跑一次
+3. 重複 3-8（Archive → Upload）
+4. 在 App Store Connect 建立新版本、選新的建置版本、送審
 
 ---
 
@@ -155,8 +257,8 @@ npx tauri ios build --export-method app-store-connect
 
 2. **功能過於簡單**（Apple Guideline 4.2 Minimum Functionality）
    計時器類 App 常被以此拒絕。若遇到，強調 Flowmato 不只是計時器：
-   有待辦與專注的連動、思緒卸載、下次起點記錄、休息鎖定、三層可疊加音景，
-   以及**完整的工作歷程與日曆匯出**（月曆檢視、每日專注紀錄、.ics 匯出）。
+   有待辦與專注的連動、規劃顆數與實際的對照、思緒卸載、下次起點記錄、休息鎖定、
+   兩層可疊加音景，以及**完整的工作歷程與日曆匯出**（月曆檢視、每日專注紀錄、.ics 匯出）。
    截圖已針對這點設計。
 
 3. **隱私權政策網址無法開啟**
@@ -186,13 +288,19 @@ npx tauri ios build --export-method app-store-connect
 - ✅ 商店截圖、功能圖片、中英文文案、分級與資料安全問卷答案
 - ✅ 隱私權政策頁
 - ✅ CI：Android AAB 建置（可選簽章）、iOS 編譯驗證
+- ✅ iOS 送審前置：`Info.ios.plist`（免出口合規問答、鎖直向）、
+  `PrivacyInfo.xcprivacy`（三類必須說明理由的 API，代碼已對照實際出貨的 SDK 驗證）
+- ✅ `scripts/preflight-ios.mjs`：圖示 alpha、截圖尺寸、文案長度、版本一致性一次檢查
 
 ## 附錄：我無法完成的部分，以及原因
 
 - ❌ **開發者帳號**：需要你的身分證件、信用卡、簽署合約
 - ❌ **簽章憑證**：Apple 憑證只能從你的帳號產生；Android 上傳金鑰應由你保管
 - ❌ **送出審查**：需在你的帳號後台操作
-- ❌ **iOS 完整打包**：需要 macOS + Xcode + 你的憑證（這個環境是 Linux）
+- ❌ **iOS 完整打包與上傳**：需要 macOS + Xcode + 你的憑證（這個環境是 Linux）。
+  Xcode 那一段已逐步寫在第三節，照著點即可
+- ❌ **把 PrivacyInfo.xcprivacy 加進 Xcode target**：`gen/apple/` 要跑過
+  `tauri ios init` 才存在，只能在你的 Mac 上做（3-6，拖曳一次）
 - ⚠️ **背景音訊**：切換到其他 App 時音景會暫停。iOS 要讓 WebView 的音訊在背景續播，
   需要額外的原生設定（AVAudioSession + background audio 權限），且 Apple 對
   「只為了播放背景音而宣告 audio 模式」的審查較嚴。目前設計是前景播放，計時本身

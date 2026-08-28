@@ -117,6 +117,17 @@ jobs:
       - name: Ensure CocoaPods
         run: pod --version || sudo gem install cocoapods
 
+      # 送審前置檔案壞掉的話，最晚要在這裡發現，不要等到上傳被 Apple 退
+      - name: Preflight（圖示、截圖、文案、隱私權清單）
+        working-directory: pomodoro
+        run: node scripts/preflight-ios.mjs
+
+      - name: Validate plists
+        working-directory: pomodoro
+        run: |
+          plutil -lint src-tauri/Info.ios.plist
+          plutil -lint src-tauri/ios/PrivacyInfo.xcprivacy
+
       - name: Init iOS project
         working-directory: pomodoro
         run: npx tauri ios init
