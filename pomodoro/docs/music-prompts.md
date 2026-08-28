@@ -134,7 +134,7 @@ seamless loop, five minute rest music
    ```
    2 分鐘的檔案約 1.8 MB，四首約 7 MB
 3. 我會把 `buildPad()` 那層換成 `AudioBufferSourceNode` 播放音檔並 `loop = true`，
-   雙耳節拍與環境音維持合成（那兩層合成的效果本來就夠好，且能無限循環不佔空間）
+   雙耳節拍與和聲鋪底維持合成（合成的效果本來就夠好，且能無限循環不佔空間）
 4. 音檔層與合成層共用同一組淡入淡出與音量控制，切換模式時一樣 crossfade
 
 **保留合成版作為 fallback**：音檔載入失敗或使用者關閉時，自動退回目前的合成和聲，

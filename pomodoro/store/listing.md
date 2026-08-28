@@ -21,7 +21,7 @@ Flowmato 心流鐘
 
 ### 關鍵字（最多 100 字元，逗號分隔，不需重複名稱）
 ```
-番茄鐘,蕃茄鐘,專注,計時器,待辦,番茄工作法,pomodoro,時間管理,白噪音,雨聲,習慣,效率
+番茄鐘,蕃茄鐘,專注,計時器,待辦,番茄工作法,pomodoro,時間管理,深度工作,習慣,效率,行事曆
 ```
 
 ### 宣傳文字（最多 170 字元，可隨時更新不需送審）
@@ -49,11 +49,10 @@ Flowmato 是一個安靜的專注計時器。它的設計只圍繞一件事：�
 ■ 休息就好好休息
 休息時間會鎖住畫面，用一個緩慢的呼吸引導陪你度過——吸氣四秒、屏住兩秒、吐氣六秒。這幾分鐘不是拿來滑手機的。想提早結束隨時可以。
 
-■ 三層音景，隨你疊加
+■ 兩層音景，隨你疊加
 ・專注音樂：三首無人聲的樂曲，分別適合硬核分析、吸收閱讀、發散思考
-・環境音：雨聲、海浪、棕噪音，蓋掉環境裡的雜訊
 ・和聲鋪底：沒有旋律起伏的持續織體，不會勾走注意力
-三層各自開關、可以疊在一起，休息時會自動換成比較舒緩的組合。
+兩層各自開關、可以疊在一起，休息時會自動換成比較舒緩的組合。
 樂曲會無縫循環，接縫聽不出來，25 分鐘不會中斷。全部內建，不需要連網。
 
 ■ 你的資料只在你的裝置裡
@@ -101,7 +100,7 @@ Put your worries down, then focus.
 
 ### Keywords
 ```
-pomodoro,focus,timer,todo,deep work,productivity,white noise,rain,study,concentration
+pomodoro,focus,timer,todo,deep work,productivity,calendar,study,concentration,planner
 ```
 
 ### Description
@@ -123,9 +122,8 @@ Every finished block is recorded. The calendar shades each day by how much you d
 ■ Actually rest during breaks
 Breaks lock the screen and give you a slow breathing guide — in for four, hold for two, out for six. These minutes aren't for scrolling. You can end early whenever you want.
 
-■ Three sound layers
+■ Two sound layers
 ・Focus music: three instrumental pieces — one for hard analysis, one for reading, one for open thinking
-・Ambience: rain, ocean waves, or brown noise to cover the room
 ・Harmonic bed: a sustained texture with no melody to pull at you
 Each layer toggles independently and they stack. Breaks switch to a gentler mix automatically.
 Tracks loop seamlessly, so a 25-minute block never breaks. Everything is bundled — no network needed.
@@ -183,8 +181,8 @@ App 沒有帳號系統、沒有分析、沒有廣告 SDK、沒有網路請求。
 This app works entirely offline. There is no account, no login, no network request,
 and no analytics. All data (tasks, statistics, settings) is stored locally on the device.
 
-The audio feature plays bundled instrumental tracks and generates ambience in real time
-using the Web Audio API. Nothing is downloaded at runtime. It is offered as a background
+The audio feature plays bundled instrumental tracks and synthesises a harmonic bed in
+real time using the Web Audio API. Nothing is downloaded at runtime. It is offered as a background
 sound option for concentration, and the app makes no health or medical claims.
 
 Notification permission is used only to alert the user when a focus or break

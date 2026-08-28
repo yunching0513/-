@@ -10,7 +10,9 @@
     padding: 46px 30px 0;
   }
   h2 { font-size: 30px; font-weight: 600; letter-spacing: -.01em; color: #26211C; text-align: center; line-height: 1.35; text-wrap: balance; }
-  p { font-size: 15px; line-height: 1.65; color: #8D8579; text-align: center; margin-top: 12px; max-width: 24ch; text-wrap: balance; }
+  /* 中文沒有詞界，瀏覽器會在任意字之間斷行（「和聲鋪／底」）。
+     改由文案自己用 \n 指定斷點 */
+  p { font-size: 15px; line-height: 1.65; color: #8D8579; text-align: center; margin-top: 12px; max-width: 26ch; white-space: pre-line; }
   .shot { margin-top: 34px; width: 356px; border-radius: 26px; overflow: hidden;
           box-shadow: 0 24px 60px rgba(70,46,28,.20), 0 2px 8px rgba(70,46,28,.10); }
   .shot img { width: 100%; display: block; }

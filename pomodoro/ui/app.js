@@ -22,7 +22,7 @@ const DEFAULTS = {
   focus: 25, short: 5, long: 15,
   autoBreak: true, autoFocus: false, sound: true, notify: true, pinned: false,
   warmup: true, restLock: true, cleanCut: true,
-  audio: 'off', ambience: 'off', pad: false, muted: false, volume: 35,
+  audio: 'off', pad: false, muted: false, volume: 35,
 };
 const settings = Object.assign({}, DEFAULTS, store.get('pomo.settings.v1', {}));
 const saveSettings = () => store.set('pomo.settings.v1', settings);
@@ -424,9 +424,9 @@ function chime(kind) {
   }
 }
 
-/* 三層可獨立開關：雙耳節拍 / 環境音 / 和聲鋪底 */
-const layers = { beat: null, amb: null, pad: null };
-const LAYER_VOL = { beat: 0.34, amb: 0.32, pad: 0.10 };
+/* 兩層可獨立開關：專注音樂 / 和聲鋪底 */
+const layers = { beat: null, pad: null };
+const LAYER_VOL = { beat: 0.34, pad: 0.10 };
 
 const BEAT_HZ = { beta: 18, alpha: 8, theta: 6 };
 const CARRIER = 220; // A3 載波，低頻聽感柔和
@@ -520,35 +520,6 @@ const CHORD = {
   rest:  [110.00, 164.81, 220.00, 277.18, 329.63],   // A2 E3 A3 C#4 E4 — A
 };
 
-/* 噪音樣本：4 秒 loop，首尾交叉淡化避免接縫 click */
-const noiseCache = {};
-function noiseBuffer(kind) {
-  if (noiseCache[kind]) return noiseCache[kind];
-  const ctx = audioCtx;
-  const len = Math.floor(ctx.sampleRate * 4);
-  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
-  const d = buf.getChannelData(0);
-
-  if (kind === 'white') {
-    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
-  } else {
-    let last = 0; // 積分白噪音 → 棕噪音，能量集中在低頻
-    for (let i = 0; i < len; i++) {
-      last = (last + 0.02 * (Math.random() * 2 - 1)) / 1.02;
-      d[i] = last * 3.5;
-    }
-  }
-
-  const fade = Math.floor(ctx.sampleRate * 0.05);
-  for (let i = 0; i < fade; i++) {
-    const t = i / fade;
-    d[i] = d[i] * t + d[len - fade + i] * (1 - t);
-  }
-
-  noiseCache[kind] = buf;
-  return buf;
-}
-
 /* 合成雙耳節拍：音檔載不到時的後備（例如頁面沒有附上 audio/） */
 function attachSynthBeat(band, gain) {
   const ctx = audioCtx;
@@ -587,47 +558,6 @@ function buildBeat(band) {
 
   layer.dispose = (at) => { layer.loop?.stop(at); };
   return layer;
-}
-
-function buildAmbience(kind) {
-  const ctx = audioCtx;
-  const src = ctx.createBufferSource();
-  src.buffer = noiseBuffer(kind === 'rain' ? 'white' : 'brown');
-  src.loop = true;
-  const gain = ctx.createGain();
-  gain.gain.value = 0.0001;
-  const nodes = [src];
-
-  if (kind === 'rain') {
-    const bp = ctx.createBiquadFilter();
-    bp.type = 'bandpass'; bp.frequency.value = 1500; bp.Q.value = 0.5;
-    const hs = ctx.createBiquadFilter();
-    hs.type = 'highshelf'; hs.frequency.value = 4500; hs.gain.value = -7;
-    src.connect(bp).connect(hs).connect(gain);
-  } else if (kind === 'waves') {
-    const lp = ctx.createBiquadFilter();
-    lp.type = 'lowpass'; lp.frequency.value = 520; lp.Q.value = 0.4;
-    // 潮汐：獨立的調製節點，不去動被淡入淡出控制的 gain
-    const tide = ctx.createGain();
-    tide.gain.value = 0.62;
-    const lfo = ctx.createOscillator();
-    lfo.frequency.value = 0.07; // 約 14 秒一次起落
-    const cut = ctx.createGain(); cut.gain.value = 240;
-    const amp = ctx.createGain(); amp.gain.value = 0.34;
-    lfo.connect(cut).connect(lp.frequency);
-    lfo.connect(amp).connect(tide.gain);
-    lfo.start();
-    src.connect(lp).connect(tide).connect(gain);
-    nodes.push(lfo);
-  } else {
-    const lp = ctx.createBiquadFilter();
-    lp.type = 'lowpass'; lp.frequency.value = 1000;
-    src.connect(lp).connect(gain);
-  }
-
-  gain.connect(mix);
-  src.start();
-  return { gain, nodes };
 }
 
 function buildPad(mode) {
@@ -694,7 +624,7 @@ function syncLayer(name, key, build) {
   l.gain.gain.exponentialRampToValueAtTime(layerTarget(name), t + 1.4);
 }
 
-const audioWanted = () => settings.audio !== 'off' || settings.ambience !== 'off' || settings.pad;
+const audioWanted = () => settings.audio !== 'off' || settings.pad;
 
 /* 專注播選定頻段；休息自動切 Alpha 與大調和聲（利於 DMN 恢復） */
 function syncAudio() {
@@ -703,7 +633,6 @@ function syncAudio() {
   const resting = state.mode !== 'focus';
 
   syncLayer('beat', live && settings.audio !== 'off' ? (resting ? 'alpha' : settings.audio) : null, buildBeat);
-  syncLayer('amb', live && settings.ambience !== 'off' ? settings.ambience : null, buildAmbience);
   syncLayer('pad', live && settings.pad ? (resting ? 'rest' : 'focus') : null, buildPad);
   updateAudioBtn();
 }
@@ -733,7 +662,7 @@ function setVolume(v) {
 function toggleMute() {
   if (!audioWanted()) {
     settings.audio = 'alpha';
-    settings.ambience = 'rain';
+    settings.pad = true;
     settings.muted = false;
   } else {
     settings.muted = !settings.muted;
@@ -1092,7 +1021,7 @@ function syncSheetUI() {
   });
   for (const [id, key] of TOGGLES) $(`#${id}`).checked = settings[key];
   $('#optVolume').value = settings.volume;
-  for (const [id, key] of [['beatSeg', 'audio'], ['ambSeg', 'ambience']]) {
+  for (const [id, key] of [['beatSeg', 'audio']]) {
     for (const b of document.querySelectorAll(`#${id} .seg-btn`)) {
       const on = b.dataset.val === settings[key];
       b.classList.toggle('on', on);
@@ -1140,7 +1069,7 @@ for (const [id, key] of TOGGLES) {
   });
 }
 
-for (const [id, key] of [['beatSeg', 'audio'], ['ambSeg', 'ambience']]) {
+for (const [id, key] of [['beatSeg', 'audio']]) {
   $(`#${id}`).addEventListener('click', (e) => {
     const btn = e.target.closest('.seg-btn');
     if (!btn) return;
@@ -1254,7 +1183,6 @@ window.__pomo = {
     ctx: audioCtx?.state || null,
     beat: layers.beat?.key || null,
     beatMode: layers.beat?.mode || 'loading',
-    amb: layers.amb?.key || null,
     pad: layers.pad?.key || null,
   }),
 };
