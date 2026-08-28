@@ -29,8 +29,10 @@ pomodoro/
 │   ├── appstore-icon-1024.png              App Store 行銷圖示（1024×1024，無透明）
 │   ├── play-icon-512.png                   Play 商店圖示（512×512）
 │   ├── play-feature-graphic-1024x500.png   Play 功能圖片（必填）
-│   ├── screenshots/                        五張 1290×2796，兩邊商店都可用
+│   ├── screenshots/                        iPhone 6.9 吋五張 1290×2796（Play 也用這組）
+│   ├── screenshots-ipad/                   iPad 13 吋五張 2048×2732
 │   └── listing.md                          中英文名稱、描述、關鍵字、分級答案、送審備註
+├── scripts/store/shoot.mjs                 重新產生上面兩組截圖（npm run screenshots）
 ├── src-tauri/Info.ios.plist                iOS Info.plist 覆寫（Tauri 自動合併）
 ├── src-tauri/ios/PrivacyInfo.xcprivacy     隱私權資訊清單（需在 Xcode 手動加入）
 ├── scripts/preflight-ios.mjs               送審前自動檢查
@@ -161,12 +163,13 @@ open src-tauri/gen/apple/Flowmato.xcodeproj
 | 分頁 | 要做的事 |
 |---|---|
 | **Signing & Capabilities** | 勾 **Automatically manage signing**；**Team** 選你的帳號；確認 Bundle Identifier 是 `tw.yunching.flowmato` |
-| **General → Supported Destinations** | **移除 iPad**，只留 iPhone |
+| **General → Supported Destinations** | 保留 **iPhone** 與 **iPad**（預設就是兩個都有，不用動） |
 
-**為什麼移除 iPad**：目前版面是為手機直向設計的，在 iPad 上會變成一個
-小小的計時器浮在一大片空白中間，容易被審查以「未針對該裝置最佳化」挑剔；
-而且宣告支援 iPad 就必須另外提供 iPad 截圖。留 iPhone 就好，iPad 使用者
-仍可用相容模式安裝。之後要正式支援 iPad，再補一套平板版面。
+**iPad 是支援的**：`ui/style.css` 有一段平板版面（`@media (min-width: 700px)
+and (min-height: 700px)`），環會放大、面板變成置中的對話框、字級整組跟著加大。
+直向橫向都測過（13 吋／11 吋／mini），分割檢視縮到手機寬時會自動退回手機版面。
+因為支援 iPad，**App Store Connect 會另外要求一組 iPad 截圖**，已經備妥在
+`store/screenshots-ipad/`。
 
 Xcode 會自動幫你建立憑證與 provisioning profile，不需要手動去開發者網站產生。
 
@@ -223,7 +226,9 @@ UserDefaults `CA92.1`、系統開機時間 `35F9.1`），以及「不追蹤、�
 在版本頁面依 `store/listing.md` 填：
 
 - **名稱／副標題／關鍵字／描述／宣傳文字** — 直接複製
-- **截圖** — 上傳 `store/screenshots/` 的五張（6.9 吋，1290×2796）
+- **截圖** — 兩組都要傳：
+  - **iPhone 6.9 吋** ← `store/screenshots/`（五張，1290×2796）
+  - **iPad 13 吋** ← `store/screenshots-ipad/`（五張，2048×2732）
 - **App 圖示** — `store/appstore-icon-1024.png`
 - **隱私權政策網址** — `https://yunching0513.github.io/-/privacy.html`
   （**要先啟用 GitHub Pages，並自己點開確認打得開**）
@@ -290,7 +295,10 @@ UserDefaults `CA92.1`、系統開機時間 `35F9.1`），以及「不追蹤、�
 - ✅ CI：Android AAB 建置（可選簽章）、iOS 編譯驗證
 - ✅ iOS 送審前置：`Info.ios.plist`（免出口合規問答、鎖直向）、
   `PrivacyInfo.xcprivacy`（三類必須說明理由的 API，代碼已對照實際出貨的 SDK 驗證）
-- ✅ `scripts/preflight-ios.mjs`：圖示 alpha、截圖尺寸、文案長度、版本一致性一次檢查
+- ✅ `scripts/preflight-ios.mjs`：圖示 alpha、兩組截圖尺寸、文案長度、版本一致性一次檢查
+- ✅ iPad 版面：環與字級隨螢幕放大、面板改為置中對話框，
+  13 吋／11 吋／mini 的直向橫向與分割檢視都驗證過
+- ✅ iPad 13 吋商店截圖（`npm run screenshots` 可重新產生兩組）
 
 ## 附錄：我無法完成的部分，以及原因
 

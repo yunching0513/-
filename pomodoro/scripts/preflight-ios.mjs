@@ -116,25 +116,28 @@ else {
 }
 
 /* ———— 截圖 ————
-   6.9 吋（1290×2796 或 1320×2868）為必填，其他尺寸 Apple 會自動沿用。 */
+   iPhone 6.9 吋必填；有支援 iPad 就得另外附 iPad 13 吋，兩者缺一不可。
+   其餘尺寸 Apple 會自動沿用。 */
 head('截圖');
-const SHOTS = R('store/screenshots');
-const okSizes = [[1290, 2796], [1320, 2868]];
-if (!existsSync(SHOTS)) no('缺少 store/screenshots');
-else {
-  const files = readdirSync(SHOTS).filter((f) => f.endsWith('.png')).sort();
-  if (files.length < 1) no('沒有任何截圖');
-  else if (files.length > 10) no(`截圖 ${files.length} 張，超過 App Store 上限 10 張`);
-  else {
-    let sBad = 0;
-    for (const f of files) {
-      const i = png(join(SHOTS, f));
-      if (!okSizes.some(([w, h]) => i.w === w && i.h === h)) {
-        no(`${f} 尺寸 ${i.w}×${i.h} 不是 6.9 吋的 1290×2796 或 1320×2868`); sBad++;
-      }
+const SETS = [
+  { dir: 'store/screenshots',      label: 'iPhone 6.9 吋', sizes: [[1290, 2796], [1320, 2868]] },
+  { dir: 'store/screenshots-ipad', label: 'iPad 13 吋',    sizes: [[2048, 2732], [2064, 2752]] },
+];
+for (const set of SETS) {
+  const dir = R(set.dir);
+  const spec = set.sizes.map(([w, h]) => `${w}×${h}`).join(' 或 ');
+  if (!existsSync(dir)) { no(`缺少 ${set.dir}（${set.label}）`); continue; }
+  const files = readdirSync(dir).filter((f) => f.endsWith('.png')).sort();
+  if (files.length < 1) { no(`${set.label}：沒有任何截圖`); continue; }
+  if (files.length > 10) { no(`${set.label}：${files.length} 張，超過 App Store 上限 10 張`); continue; }
+  let sBad = 0;
+  for (const f of files) {
+    const i = png(join(dir, f));
+    if (!set.sizes.some(([w, h]) => i.w === w && i.h === h)) {
+      no(`${set.dir}/${f} 尺寸 ${i.w}×${i.h}，${set.label}需要 ${spec}`); sBad++;
     }
-    if (!sBad) ok(`${files.length} 張截圖，尺寸皆為 6.9 吋規格`);
   }
+  if (!sBad) ok(`${set.label} ${files.length} 張，尺寸皆符合（${spec}）`);
 }
 
 /* ———— 商店文案長度 ———— */

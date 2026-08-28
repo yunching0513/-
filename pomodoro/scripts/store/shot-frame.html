@@ -1,20 +1,59 @@
 <!doctype html>
 <meta charset="utf-8">
+<!--
+  商店截圖的外框：標語 + 副標 + 裝置畫面。
+  用 query 參數帶入內容，device=ipad 切換成平板比例。
+-->
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    width: 430px; height: 932px; overflow: hidden;
+    /* 手機：430×932，×3 後為 App Store 6.9 吋要求的 1290×2796 */
+    --w: 430px; --h: 932px;
+    --pad-top: 46px; --title: 30px; --sub: 15px;
+    --gap: 34px; --shot: 356px; --radius: 26px;
+    width: var(--w); height: var(--h); overflow: hidden;
     font-family: -apple-system, "PingFang TC", "Noto Sans TC", "Noto Sans CJK TC", sans-serif;
     background: linear-gradient(168deg, #FAF7F2 0%, #F0EADE 100%);
     display: flex; flex-direction: column; align-items: center;
-    padding: 46px 30px 0;
+    padding: var(--pad-top) 30px 0;
   }
-  h2 { font-size: 30px; font-weight: 600; letter-spacing: -.01em; color: #26211C; text-align: center; line-height: 1.35; text-wrap: balance; }
+  /* 平板：1024×1366，×2 後為 App Store 13 吋要求的 2048×2732。
+     外框和 iPad 畫面是同一個比例，照手機那樣「上面放標語、下面放縮小的裝置」的話，
+     裝置得縮到 700px 才塞得下，裡面的介面就看不清楚了。
+     改成滿版鋪畫面，標語直接壓在 iPad 版面上方那片留白上。 */
+  body.ipad {
+    --w: 1024px; --h: 1366px;
+    padding: 0; display: block; position: relative;
+    background: none;
+  }
+  body.ipad .shot {
+    position: absolute; inset: 0; z-index: 1;
+    margin: 0; width: 100%; height: 100%;
+    border-radius: 0; box-shadow: none;
+  }
+  body.ipad .shot img { width: 100%; height: 100%; object-fit: cover; }
+  body.ipad h2 {
+    position: absolute; z-index: 2; top: 132px; left: 60px; right: 60px;
+    font-size: 54px; line-height: 1.28;
+  }
+  body.ipad p {
+    position: absolute; z-index: 2; top: 232px; left: 50%; transform: translateX(-50%);
+    font-size: 25px; line-height: 1.6; margin-top: 0; max-width: 660px;
+  }
+  h2 {
+    font-size: var(--title); font-weight: 600; letter-spacing: -.01em;
+    color: #26211C; text-align: center; line-height: 1.35; text-wrap: balance;
+  }
   /* 中文沒有詞界，瀏覽器會在任意字之間斷行（「和聲鋪／底」）。
      改由文案自己用 \n 指定斷點 */
-  p { font-size: 15px; line-height: 1.65; color: #8D8579; text-align: center; margin-top: 12px; max-width: 26ch; white-space: pre-line; }
-  .shot { margin-top: 34px; width: 356px; border-radius: 26px; overflow: hidden;
-          box-shadow: 0 24px 60px rgba(70,46,28,.20), 0 2px 8px rgba(70,46,28,.10); }
+  p {
+    font-size: var(--sub); line-height: 1.65; color: #8D8579; text-align: center;
+    margin-top: calc(var(--sub) * .8); max-width: 26ch; white-space: pre-line;
+  }
+  .shot {
+    margin-top: var(--gap); width: var(--shot); border-radius: var(--radius); overflow: hidden;
+    box-shadow: 0 24px 60px rgba(70, 46, 28, .20), 0 2px 8px rgba(70, 46, 28, .10);
+  }
   .shot img { width: 100%; display: block; }
   body.dark { background: linear-gradient(168deg, #1C1A16 0%, #100E0C 100%); }
   body.dark h2 { color: #EFEAE2; }
@@ -28,5 +67,6 @@
   t.textContent = q.get('t') || '';
   s.textContent = q.get('s') || '';
   img.src = q.get('img') || '';
+  if (q.get('device') === 'ipad') document.body.classList.add('ipad');
   if (q.get('dark') === '1') document.body.classList.add('dark');
 </script>

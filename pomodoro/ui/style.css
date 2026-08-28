@@ -195,6 +195,95 @@ html.mobile .controls {
 html.mobile .today { padding-bottom: max(18px, 2.5vh); }
 html.mobile .task-chip { max-width: min(300px, 80vw); font-size: 13px; }
 
+/* ———— 平板（iPad）————
+   條件同時看寬與高：橫放的手機寬度也會超過 700px，但高度不會。
+   用媒體查詢而不是裝置類別，iPad 的分割檢視縮到手機寬時會自動退回手機版面。
+
+   環的尺寸集中在 --ring，其他跟著它換算，任何尺寸下比例都一致。 */
+@media (min-width: 700px) and (min-height: 700px) {
+  html.mobile .app { --ring: min(440px, 52vh, 50vw); }
+
+  html.mobile .titlebar { height: 60px; padding-right: 6px; }
+  html.mobile .icon-btn { width: 50px; height: 50px; }
+  html.mobile .icon-btn svg { width: 23px; height: 23px; }
+
+  html.mobile .mode-label { font-size: 15px; }
+  html.mobile .task-chip {
+    max-width: min(460px, 62vw);
+    font-size: 15px;
+    padding: 9px 20px 9px 16px;
+    margin-top: 18px;
+  }
+  html.mobile .chip-dot { width: 7px; height: 7px; }
+  html.mobile .chip-count { font-size: 13px; }
+
+  html.mobile .ring-wrap {
+    width: var(--ring);
+    height: var(--ring);
+    margin-top: clamp(16px, 3vh, 34px);
+  }
+  html.mobile .time { font-size: calc(var(--ring) * .215); }
+  html.mobile .ring-center { gap: calc(var(--ring) * .06); }
+  html.mobile .dot { width: 9px; height: 9px; }
+  html.mobile .dots { gap: 9px; }
+
+  html.mobile .controls {
+    gap: clamp(44px, 7vw, 72px);
+    padding-top: clamp(30px, 5vh, 58px);
+  }
+  html.mobile .play-btn { width: 88px; height: 88px; }
+  html.mobile .play-btn svg { width: 36px; height: 36px; }
+  html.mobile .ghost-btn { width: 60px; height: 60px; }
+  html.mobile .ghost-btn svg { width: 26px; height: 26px; }
+
+  html.mobile .today { font-size: 13px; padding-bottom: max(26px, 3vh); }
+
+  /* 面板改成置中的對話框。滿版的底部面板在 1024px 寬的螢幕上會過寬到難以閱讀，
+     貼著下緣也會蓋住播放鍵；大螢幕的慣例是置中浮起 + 淡入。 */
+  html.mobile .sheet {
+    left: 50%;
+    right: auto;
+    top: 50%;
+    bottom: auto;
+    width: min(520px, 78vw);
+    max-height: min(76vh, 780px);
+    border-radius: 22px;
+    box-shadow: 0 26px 70px rgba(0, 0, 0, .24);
+    padding-bottom: 0;
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 26px));
+    transition: transform .3s cubic-bezier(.3, .72, .2, 1), opacity .24s ease;
+  }
+  html.mobile .sheet.show { opacity: 1; transform: translate(-50%, -50%); }
+  html.mobile .sheet-head { padding: 18px 14px 8px 24px; }
+  html.mobile .sheet-head h2 { font-size: 16px; }
+  html.mobile .sheet-body { padding: 4px 24px 26px; }
+
+  /* 覆蓋層的內容也要收窄，否則輸入框會拉到整個螢幕寬 */
+  html.mobile .overlay-inner { max-width: 620px; gap: 16px; }
+  html.mobile .overlay-eyebrow { font-size: 13px; }
+  html.mobile .overlay-title { font-size: 26px; }
+  html.mobile .overlay-sub { font-size: 15px; }
+  html.mobile .dump-text, html.mobile .cut-input { font-size: 17px; padding: 17px 19px; }
+  html.mobile .breath { width: min(340px, 32vh); height: min(340px, 32vh); margin: 22px 0 10px; }
+  html.mobile .breath-word { font-size: 18px; }
+  html.mobile .rest-time { font-size: 52px; }
+  html.mobile .rest-hint { font-size: 15px; margin: 8px 0 10px; }
+  html.mobile .rest-note { font-size: 16px; }
+  html.mobile .pill-btn, html.mobile .text-btn { font-size: 15px; }
+
+  /* 清單在大螢幕上要好按、好讀 */
+  html.mobile .task-text { font-size: 15px; }
+  html.mobile .task-item { padding: 13px 6px 13px 3px; }
+  html.mobile .task-check { width: 26px; height: 26px; }
+  html.mobile .pip { width: 22px; height: 30px; }
+  html.mobile .pip::before { width: 9px; height: 9px; }
+  html.mobile .task-plan, html.mobile .day-plan { font-size: 13px; }
+  html.mobile .cal-day { font-size: 15px; }
+  html.mobile .cal-num { font-size: 15px; }
+  html.mobile .sess-text, html.mobile .task-sess { font-size: 13px; }
+}
+
 .web-hints {
   font-size: 11.5px;
   letter-spacing: .04em;
