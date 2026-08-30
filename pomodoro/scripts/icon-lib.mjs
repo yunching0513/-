@@ -71,21 +71,36 @@ function sdEllipseRot(px, py, cx, cy, rx, ry, deg) {
 const mix = (a, b, t) => a + (b - a) * t;
 const over = (dst, src, a) => [mix(dst[0], src[0], a), mix(dst[1], src[1], a), mix(dst[2], src[2], a)];
 
-/* 蕃茄圖形（正規化，視覺中心約 y=0.52） */
+/* 標記圖形（正規化座標，數值＝brand/logo-mark.svg 的座標 ÷ 512）。
+   同一個圓同時是蕃茄，也是主畫面那個倒數環：淡色軌道跑完整圈，
+   主色弧只跑一部分，缺口留給蒂頭。改這裡記得同步 scripts/gen-logo.mjs。 */
 const G = {
-  tomato: { cx: 0.5, cy: 0.5469, r: 0.2520 },
-  hi:     { cx: 0.4102, cy: 0.4512, rx: 0.09375, ry: 0.0605, rot: -28 },
-  stem:   { cx: 0.5, cy: 0.28125, hw: 0.01367, hh: 0.03320, r: 0.01172 },
-  leafL:  { cx: 0.4316, cy: 0.3125, rx: 0.0859, ry: 0.0332, rot: 32 },
-  leafR:  { cx: 0.5684, cy: 0.3125, rx: 0.0859, ry: 0.0332, rot: -32 },
-  visualCy: 0.52,
+  ring:  { cx: 0.5, cy: 0.5859, r: 0.2930, hw: 0.0293, a1: -66, a2: 152 },
+  stem:  { cx: 0.5, cy: 0.2813, hw: 0.0156, hh: 0.0352, r: 0.0156 },
+  leafL: { cx: 0.4210, cy: 0.2930, rx: 0.0730, ry: 0.0300, rot: 20 },
+  leafR: { cx: 0.5790, cy: 0.2930, rx: 0.0730, ry: 0.0300, rot: -20 },
+  visualCy: 0.50,
 };
+const COL = { arc: [208, 86, 62], track: [227, 221, 210], leaf: [78, 143, 91] };
+
+/* 圓頭圓弧：先取整圈的環，再用角度切出區段，兩端各補一個圓頭 */
+function sdArc(px, py, { cx, cy, r, hw, a1, a2 }) {
+  const dist = Math.hypot(px - cx, py - cy);
+  let rel = (Math.atan2(py - cy, px - cx) * 180 / Math.PI - a1) % 360;
+  if (rel < 0) rel += 360;
+  const span = ((a2 - a1) % 360 + 360) % 360;
+  const cap = (deg) => {
+    const t = deg * Math.PI / 180;
+    return sdCircle(px, py, cx + r * Math.cos(t), cy + r * Math.sin(t), hw);
+  };
+  return Math.min(rel <= span ? Math.abs(dist - r) - hw : Infinity, cap(a1), cap(a2));
+}
 
 /**
  * 畫一張 Flowmato 圖示。
  * @param size      邊長（px）
  * @param bgMode    'rounded' 圓角方形（桌面）｜'full' 滿版（iOS，不可透明）｜'none' 透明（Android 前景層）
- * @param content   蕃茄相對畫布的縮放（1 = 原設計）
+ * @param content   標記相對畫布的縮放（1 = 原設計）
  */
 export function drawIcon(size, { bgMode = 'rounded', content = 1 } = {}) {
   const buf = Buffer.alloc(size * size * 4);
@@ -111,28 +126,22 @@ export function drawIcon(size, { bgMode = 'rounded', content = 1 } = {}) {
       const ga = aa / content;
 
       let inkA = 0;
-
-      const dTomato = sdCircle(gx, gy, G.tomato.cx, G.tomato.cy, G.tomato.r);
-      if (dTomato < ga) {
-        const t = clamp01((gy - 0.295) / 0.504);
-        const a = clamp01(0.5 - dTomato / ga);
-        rgb = over(rgb, [mix(226, 199, t), mix(106, 74, t), mix(79, 52, t)], a);
+      const paint = (d, col) => {
+        if (d >= ga) return;
+        const a = clamp01(0.5 - d / ga);
+        rgb = over(rgb, col, a);
         inkA = Math.max(inkA, a);
-        const dHi = sdEllipseRot(gx, gy, G.hi.cx, G.hi.cy, G.hi.rx, G.hi.ry, G.hi.rot);
-        if (dHi < ga) rgb = over(rgb, [238, 148, 124], clamp01(0.5 - dHi / ga) * 0.55);
-      }
+      };
 
-      const dGreen = Math.min(
+      // 軌道（整圈）→ 主色弧 → 蒂頭，依序疊上去
+      const R = G.ring;
+      paint(Math.abs(Math.hypot(gx - R.cx, gy - R.cy) - R.r) - R.hw, COL.track);
+      paint(sdArc(gx, gy, R), COL.arc);
+      paint(Math.min(
         sdRoundBox(gx, gy, G.stem.cx, G.stem.cy, G.stem.hw, G.stem.hh, G.stem.r),
         sdEllipseRot(gx, gy, G.leafL.cx, G.leafL.cy, G.leafL.rx, G.leafL.ry, G.leafL.rot),
         sdEllipseRot(gx, gy, G.leafR.cx, G.leafR.cy, G.leafR.rx, G.leafR.ry, G.leafR.rot),
-      );
-      if (dGreen < ga) {
-        const t = clamp01((gy - 0.248) / 0.117);
-        const a = clamp01(0.5 - dGreen / ga);
-        rgb = over(rgb, [mix(88, 62, t), mix(158, 128, t), mix(102, 78, t)], a);
-        inkA = Math.max(inkA, a);
-      }
+      ), COL.leaf);
 
       const i = (y * size + x) * 4;
       buf[i] = Math.round(rgb[0]);
