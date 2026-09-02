@@ -23,6 +23,8 @@ const DEFAULTS = {
   autoBreak: true, autoFocus: false, sound: true, notify: true, pinned: false,
   warmup: true, restLock: true, cleanCut: true,
   audio: 'off', pad: false, muted: false, volume: 35,
+  birth: '',   // 'YYYY-MM-DD'，空字串＝不顯示人生天數
+  lifeTo: 100, // 想活到幾歲，剩餘天數以此為準
 };
 const settings = Object.assign({}, DEFAULTS, store.get('pomo.settings.v1', {}));
 const saveSettings = () => store.set('pomo.settings.v1', settings);
@@ -46,6 +48,28 @@ function bumpToday(minutes) {
   store.set('pomo.stats.v1', stats);
 }
 const todayStats = () => (stats.date === todayKey() ? stats : { count: 0, minutes: 0 });
+
+/* ———— 人生天數 ———— */
+/* 用「日期」相減而不是毫秒差：跨日光節約時間時毫秒差會少一小時，天數就少算一天 */
+const daysBetween = (a, b) => Math.round(
+  (Date.UTC(b.getFullYear(), b.getMonth(), b.getDate())
+ - Date.UTC(a.getFullYear(), a.getMonth(), a.getDate())) / 86400000);
+
+function lifeStats() {
+  const raw = settings.birth;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw || '')) return null;
+  const [y, m, d] = raw.split('-').map(Number);
+  const birth = new Date(y, m - 1, d);
+  if (Number.isNaN(+birth) || birth.getDate() !== d) return null; // 例如 2/30
+  const today = new Date();
+  const lived = daysBetween(birth, today);
+  if (lived < 0) return null; // 生日填在未來
+  /* 2/29 出生的話，非閏年沒有那一天，Date 會自動落到 3/1 */
+  const to = settings.lifeTo;
+  const left = daysBetween(today, new Date(y + to, m - 1, d));
+  const total = lived + Math.max(0, left);
+  return { lived, left, total, pct: total ? lived / total : 1, to };
+}
 
 /* ———— 待辦事項（原則一：認知卸載） ———— */
 /* 每件事都綁一個日期，待辦清單與歷程看的是同一份資料：
@@ -1021,6 +1045,7 @@ function syncSheetUI() {
   });
   for (const [id, key] of TOGGLES) $(`#${id}`).checked = settings[key];
   $('#optVolume').value = settings.volume;
+  $('#optBirth').value = settings.birth;
   for (const [id, key] of [['beatSeg', 'audio']]) {
     for (const b of document.querySelectorAll(`#${id} .seg-btn`)) {
       const on = b.dataset.val === settings[key];
@@ -1048,6 +1073,7 @@ document.querySelectorAll('.stepper').forEach((st) => {
     settings[key] = Math.min(+st.dataset.max, Math.max(+st.dataset.min, next));
     saveSettings();
     syncSheetUI();
+    if (key === 'lifeTo') { document.dispatchEvent(new CustomEvent('pomo:life-changed')); return; }
     if (state.mode === key && !state.running) reset();
     else render();
   });
@@ -1084,6 +1110,13 @@ for (const [id, key] of [['beatSeg', 'audio']]) {
 
 $('#optVolume').addEventListener('input', (e) => setVolume(+e.target.value));
 
+/* 生日：歷程頁的人生天數靠這個。清空就不顯示 */
+$('#optBirth').addEventListener('change', (e) => {
+  settings.birth = e.target.value || '';
+  saveSettings();
+  document.dispatchEvent(new CustomEvent('pomo:life-changed'));
+});
+
 el.audioBtn.addEventListener('click', toggleMute);
 
 /* 待辦 */
@@ -1117,7 +1150,7 @@ pinBtn.addEventListener('click', () => applyPin(!settings.pinned));
 el.playBtn.addEventListener('click', requestStart);
 $('#resetBtn').addEventListener('click', reset);
 $('#skipBtn').addEventListener('click', skip);
-$('#setBtn').addEventListener('click', () => openSheet(el.sheet));
+$('#setBtn').addEventListener('click', () => { syncSheetUI(); openSheet(el.sheet); });
 document.querySelectorAll('.close-sheet').forEach((b) => b.addEventListener('click', () => closeSheets()));
 el.backdrop.addEventListener('click', () => closeSheets());
 
@@ -1178,6 +1211,7 @@ window.__pomo = {
   active: () => activeTask(),
   /* 歷程頁面共用：同一份資料、同一種操作 */
   taskRow, setEst, setActive, addTask, toggleDone, removeTask, EST_MAX,
+  life: () => lifeStats(),
   groups: () => groupTasks(),
   audio: () => ({
     ctx: audioCtx?.state || null,

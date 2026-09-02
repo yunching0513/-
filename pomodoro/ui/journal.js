@@ -54,6 +54,7 @@
 
   /* ———— DOM ———— */
   const sheet = q('#journalSheet');
+  const lifeBox = q('#lifeBox');
   const grid = q('#calGrid');
   const monthLabel = q('#calMonth');
   const detail = q('#dayDetail');
@@ -232,7 +233,50 @@
     detail.appendChild(ex);
   }
 
-  const renderAll = () => { renderCalendar(); renderDay(); };
+  /* ———— 人生天數 ————
+     設定裡填了生日才顯示。刻意只給數字與一條進度，不加提醒或倒數的語氣。 */
+  const nf = new Intl.NumberFormat('en-US');
+
+  function renderLife() {
+    const s = window.__pomo?.life?.();
+    lifeBox.hidden = !s;
+    if (!s) return;
+    lifeBox.replaceChildren();
+
+    const head = document.createElement('p');
+    head.className = 'life-head';
+    head.append('已經活了 ');
+    const b = document.createElement('b');
+    b.textContent = nf.format(s.lived);
+    head.append(b, ' 天');
+    lifeBox.appendChild(head);
+
+    const bar = document.createElement('div');
+    bar.className = 'life-bar';
+    const fill = document.createElement('i');
+    fill.style.width = `${Math.min(100, s.pct * 100).toFixed(1)}%`;
+    bar.appendChild(fill);
+    bar.setAttribute('role', 'progressbar');
+    bar.setAttribute('aria-valuenow', Math.round(s.pct * 100));
+    bar.setAttribute('aria-valuemin', '0');
+    bar.setAttribute('aria-valuemax', '100');
+    lifeBox.appendChild(bar);
+
+    const foot = document.createElement('p');
+    foot.className = 'life-foot';
+    const pct = document.createElement('span');
+    pct.textContent = `${(s.pct * 100).toFixed(1)}%`;
+    const rest = document.createElement('span');
+    rest.textContent = s.left > 0
+      ? `到 ${s.to} 歲還有 ${nf.format(s.left)} 天`
+      : `已經超過 ${s.to} 歲`;
+    foot.append(pct, rest);
+    lifeBox.appendChild(foot);
+  }
+
+  document.addEventListener('pomo:life-changed', () => { if (!sheet.hidden) renderLife(); });
+
+  const renderAll = () => { renderLife(); renderCalendar(); renderDay(); };
 
   /* ———— .ics 產生 ———— */
   const esc = (s) => String(s)
@@ -433,6 +477,7 @@
   /* 測試用 */
   window.__journal = {
     history: () => history,
+    renderLife,
     buildICS,
     add(k, sessions) { history[k] = { sessions }; write(history); },
     open,

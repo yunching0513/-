@@ -171,7 +171,8 @@ html.mobile .task-del { width: 34px; height: 34px; opacity: 1; } /* 觸控沒有
 html.mobile .task-item { padding: 11px 4px 11px 2px; }
 html.mobile .pip { width: 18px; height: 26px; }
 html.mobile .pip::before { width: 8px; height: 8px; }
-html.mobile .task-input, html.mobile .cut-input, html.mobile .dump-text { font-size: 16px; } /* 16px 以下 iOS 會自動放大頁面 */
+html.mobile .task-input, html.mobile .cut-input, html.mobile .dump-text,
+html.mobile .date-input { font-size: 16px; } /* 16px 以下 iOS 會自動放大頁面 */
 
 /* 高螢幕手機：標題列固定在上、統計固定在下，中間的環與控制鍵整組置中。
    桌面的 .controls{flex:1 0 auto} 在 900px 高的手機上會撐出一大片空白，
@@ -279,6 +280,10 @@ html.mobile .task-chip { max-width: min(300px, 80vw); font-size: 13px; }
   html.mobile .pip { width: 22px; height: 30px; }
   html.mobile .pip::before { width: 9px; height: 9px; }
   html.mobile .task-plan, html.mobile .day-plan { font-size: 13px; }
+  html.mobile .life-head { font-size: 14px; }
+  html.mobile .life-head b { font-size: 23px; }
+  html.mobile .life-foot { font-size: 12px; }
+  html.mobile .date-input { font-size: 16px; padding: 9px 12px; }
   html.mobile .cal-day { font-size: 15px; }
   html.mobile .cal-num { font-size: 15px; }
   html.mobile .sess-text, html.mobile .task-sess { font-size: 13px; }
@@ -1193,6 +1198,61 @@ html.mobile .overlay { background: var(--bg); }
   bottom: 2px;
   font-size: 8.5px;
   opacity: .75;
+}
+
+/* ———— 歷程：人生天數 ———— */
+.life {
+  background: var(--field);
+  border-radius: 12px;
+  padding: 12px 14px 13px;
+  margin-bottom: 14px;
+}
+.life-head {
+  font-size: 12.5px;
+  color: var(--muted);
+  letter-spacing: .01em;
+}
+.life-head b {
+  font-size: 19px;
+  font-weight: 600;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.01em;
+  padding: 0 1px;
+}
+.life-bar {
+  height: 5px;
+  border-radius: 999px;
+  background: var(--track);
+  overflow: hidden;
+  margin: 9px 0 7px;
+}
+.life-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width .6s cubic-bezier(.3, .72, .2, 1);
+}
+.life-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 10.5px;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 生日輸入 */
+.date-input {
+  flex: 0 0 auto;
+  background: var(--field);
+  border-radius: 9px;
+  padding: 7px 10px;
+  font-size: 12.5px;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  color-scheme: light dark; /* 原生日期選單跟著深淺色 */
 }
 
 /* ———— 歷程：當日詳情 ———— */

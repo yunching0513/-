@@ -190,6 +190,7 @@
       </button>
     </header>
     <div class="sheet-body">
+      <section id="lifeBox" class="life" hidden aria-label="人生天數"></section>
       <div class="cal-nav">
         <button id="calPrev" class="cal-arrow" aria-label="上個月">‹</button>
         <span id="calMonth" class="cal-month"></span>
@@ -280,6 +281,21 @@
       <div class="row">
         <span class="row-label">音量</span>
         <input type="range" id="optVolume" class="range" min="0" max="100" value="35" aria-label="音量">
+      </div>
+
+      <div class="row-sep"></div>
+      <p class="sheet-group">人生<small class="group-note">填了生日才會顯示，只存在本機</small></p>
+      <div class="row">
+        <span class="row-label">生日<small>在「歷程」頁看已過與剩餘天數</small></span>
+        <input type="date" id="optBirth" class="date-input" aria-label="生日">
+      </div>
+      <div class="row">
+        <span class="row-label">想活到<small>剩餘天數以這個歲數計算</small></span>
+        <div class="stepper" data-key="lifeTo" data-min="50" data-max="120" data-step="5">
+          <button class="step-btn" data-dir="-1" aria-label="減少">−</button>
+          <span class="step-val"><b>100</b> 歲</span>
+          <button class="step-btn" data-dir="1" aria-label="增加">＋</button>
+        </div>
       </div>
 
       <div class="row-sep"></div>
