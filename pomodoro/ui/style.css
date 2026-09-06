@@ -1,0 +1,1375 @@
+/* ———— 主題色票 ———— */
+:root {
+  --page: #ECE8E1;
+  --bg: #F6F4F0;
+  --bg-glass: rgba(246, 244, 240, .78);
+  --sheet: #FBFAF7;
+  --ink: #26211C;
+  --muted: #8D8579;
+  --faint: #BAB2A6;
+  --track: #E7E2D8;
+  --line: rgba(38, 33, 28, .09);
+  --field: rgba(38, 33, 28, .045);
+  --on-accent: #FFFDFB;
+  --c-focus: #D0563E;
+  --c-short: #3D9887;
+  --c-long: #5B7FB2;
+  --accent: var(--c-focus);
+  --backdrop: rgba(30, 26, 22, .28);
+  --shadow-app: 0 24px 70px rgba(38, 30, 22, .18), 0 2px 10px rgba(38, 30, 22, .08);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --page: #12100E;
+    --bg: #1A1815;
+    --bg-glass: rgba(26, 24, 21, .66);
+    --sheet: #232019;
+    --ink: #EFEAE2;
+    --muted: #968D80;
+    --faint: #5D564C;
+    --track: #2F2B25;
+    --line: rgba(239, 234, 226, .09);
+    --field: rgba(239, 234, 226, .06);
+    --on-accent: #FFF6F2;
+    --c-focus: #E06A4F;
+    --c-short: #4CA895;
+    --c-long: #7B9BC8;
+    --backdrop: rgba(0, 0, 0, .5);
+    --shadow-app: 0 24px 70px rgba(0, 0, 0, .55), 0 2px 10px rgba(0, 0, 0, .35);
+  }
+}
+:root[data-theme="dark"] {
+  --page: #12100E;
+  --bg: #1A1815;
+  --bg-glass: rgba(26, 24, 21, .66);
+  --sheet: #232019;
+  --ink: #EFEAE2;
+  --muted: #968D80;
+  --faint: #5D564C;
+  --track: #2F2B25;
+  --line: rgba(239, 234, 226, .09);
+  --field: rgba(239, 234, 226, .06);
+  --on-accent: #FFF6F2;
+  --c-focus: #E06A4F;
+  --c-short: #4CA895;
+  --c-long: #7B9BC8;
+  --backdrop: rgba(0, 0, 0, .5);
+  --shadow-app: 0 24px 70px rgba(0, 0, 0, .55), 0 2px 10px rgba(0, 0, 0, .35);
+}
+
+body[data-mode="focus"] { --accent: var(--c-focus); }
+body[data-mode="short"] { --accent: var(--c-short); }
+body[data-mode="long"]  { --accent: var(--c-long); }
+
+/* ———— 基礎 ———— */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* .overlay/.sheet 自帶 display，會蓋掉瀏覽器預設的 [hidden]，
+   隱藏中的覆蓋層仍會攔截點擊 —— 這條讓 hidden 永遠有效 */
+[hidden] { display: none !important; }
+
+html, body { height: 100%; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang TC", "Noto Sans TC", "Segoe UI", sans-serif;
+  background: var(--page);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  -webkit-user-select: none;
+  overflow: hidden;
+}
+
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
+
+input, textarea {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* 文字欄位的聚焦環比實線 outline 柔和 */
+.dump-text:focus-visible,
+.cut-input:focus-visible,
+.task-input:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 32%, transparent);
+}
+
+/* ———— App 容器 ———— */
+.app {
+  position: relative;
+  width: 340px;
+  height: 540px;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  /* clip 不建立捲動容器：面板下方元素取得焦點時，瀏覽器的 scrollIntoView
+     才不會把整個版面推走（hidden 會被程式化捲動且無捲軸可還原）。
+     舊 WebKit 不支援 clip 時退回 hidden，另有 JS 保險。 */
+  overflow: hidden;
+  overflow: clip;
+}
+
+html:not(.tauri) body {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  row-gap: 20px;
+  min-height: 100vh;
+}
+html:not(.tauri) .app {
+  border-radius: 22px;
+  box-shadow: var(--shadow-app);
+  border: 1px solid var(--line);
+}
+
+html.tauri body { background: transparent; }
+html.tauri .app {
+  width: 100vw;
+  height: 100vh;
+  background: var(--bg-glass);
+}
+
+/* ———— 行動版（iOS / Android）———— */
+/* 滿版、不透明底、避開瀏海與 home indicator */
+html.mobile body { background: var(--bg); }
+html.mobile .app {
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh; /* 位址列收合時仍填滿 */
+  background: var(--bg);
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* 覆蓋層與面板同樣避開系統區域 */
+html.mobile .overlay { padding: calc(22px + env(safe-area-inset-top)) 22px calc(22px + env(safe-area-inset-bottom)); }
+html.mobile .sheet { padding-bottom: env(safe-area-inset-bottom); }
+html.mobile .backdrop { inset: calc(-1 * env(safe-area-inset-top)) 0 calc(-1 * env(safe-area-inset-bottom)); }
+
+/* 觸控目標放大到 44px 以上（Apple HIG / Material 建議值） */
+html.mobile .icon-btn { width: 44px; height: 44px; }
+html.mobile .icon-btn svg { width: 20px; height: 20px; }
+html.mobile .step-btn { width: 38px; height: 38px; font-size: 18px; }
+html.mobile .ghost-btn { width: 52px; height: 52px; }
+html.mobile .ghost-btn svg { width: 22px; height: 22px; }
+html.mobile .play-btn { width: 72px; height: 72px; }
+html.mobile .play-btn svg { width: 30px; height: 30px; }
+html.mobile .task-check { width: 24px; height: 24px; }
+html.mobile .task-del { width: 34px; height: 34px; opacity: 1; } /* 觸控沒有 hover */
+html.mobile .task-item { padding: 11px 4px 11px 2px; }
+html.mobile .pip { width: 18px; height: 26px; }
+html.mobile .pip::before { width: 8px; height: 8px; }
+html.mobile .task-input, html.mobile .cut-input, html.mobile .dump-text,
+html.mobile .date-input { font-size: 16px; } /* 16px 以下 iOS 會自動放大頁面 */
+
+/* 高螢幕手機：標題列固定在上、統計固定在下，中間的環與控制鍵整組置中。
+   桌面的 .controls{flex:1 0 auto} 在 900px 高的手機上會撐出一大片空白，
+   改用上下 auto margin 讓兩者一起浮在中央。 */
+/* 置中的是「模式標籤→chip→環→控制鍵」整組，chip 才不會與環拉開一大段 */
+html.mobile .mode-row { margin-top: auto; }
+html.mobile .ring-wrap {
+  width: min(300px, 74vw);
+  height: min(300px, 74vw);
+  margin-top: clamp(10px, 2.5vh, 24px);
+}
+html.mobile .time { font-size: clamp(52px, 15vw, 68px); }
+html.mobile .ring-center { gap: clamp(13px, 3.5vw, 18px); }
+html.mobile .dot { width: 7px; height: 7px; }
+html.mobile .controls {
+  flex: 0 0 auto;
+  gap: clamp(30px, 9vw, 44px);
+  padding-top: clamp(24px, 6vh, 54px);
+  margin-bottom: auto;
+}
+html.mobile .today { padding-bottom: max(18px, 2.5vh); }
+html.mobile .task-chip { max-width: min(300px, 80vw); font-size: 13px; }
+
+/* ———— 平板（iPad）————
+   條件同時看寬與高：橫放的手機寬度也會超過 700px，但高度不會。
+   用媒體查詢而不是裝置類別，iPad 的分割檢視縮到手機寬時會自動退回手機版面。
+
+   環的尺寸集中在 --ring，其他跟著它換算，任何尺寸下比例都一致。 */
+@media (min-width: 700px) and (min-height: 700px) {
+  html.mobile .app { --ring: min(440px, 52vh, 50vw); }
+
+  html.mobile .titlebar { height: 60px; padding-right: 6px; }
+  html.mobile .icon-btn { width: 50px; height: 50px; }
+  html.mobile .icon-btn svg { width: 23px; height: 23px; }
+
+  html.mobile .mode-label { font-size: 15px; }
+  html.mobile .task-chip {
+    max-width: min(460px, 62vw);
+    font-size: 15px;
+    padding: 9px 20px 9px 16px;
+    margin-top: 18px;
+  }
+  html.mobile .chip-dot { width: 7px; height: 7px; }
+  html.mobile .chip-count { font-size: 13px; }
+
+  html.mobile .ring-wrap {
+    width: var(--ring);
+    height: var(--ring);
+    margin-top: clamp(16px, 3vh, 34px);
+  }
+  html.mobile .time { font-size: calc(var(--ring) * .215); }
+  html.mobile .ring-center { gap: calc(var(--ring) * .06); }
+  html.mobile .dot { width: 9px; height: 9px; }
+  html.mobile .dots { gap: 9px; }
+
+  html.mobile .controls {
+    gap: clamp(44px, 7vw, 72px);
+    padding-top: clamp(30px, 5vh, 58px);
+  }
+  html.mobile .play-btn { width: 88px; height: 88px; }
+  html.mobile .play-btn svg { width: 36px; height: 36px; }
+  html.mobile .ghost-btn { width: 60px; height: 60px; }
+  html.mobile .ghost-btn svg { width: 26px; height: 26px; }
+
+  html.mobile .today { font-size: 13px; padding-bottom: max(26px, 3vh); }
+
+  /* 面板改成置中的對話框。滿版的底部面板在 1024px 寬的螢幕上會過寬到難以閱讀，
+     貼著下緣也會蓋住播放鍵；大螢幕的慣例是置中浮起 + 淡入。 */
+  html.mobile .sheet {
+    left: 50%;
+    right: auto;
+    top: 50%;
+    bottom: auto;
+    width: min(520px, 78vw);
+    max-height: min(76vh, 780px);
+    border-radius: 22px;
+    box-shadow: 0 26px 70px rgba(0, 0, 0, .24);
+    padding-bottom: 0;
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 26px));
+    transition: transform .3s cubic-bezier(.3, .72, .2, 1), opacity .24s ease;
+  }
+  html.mobile .sheet.show { opacity: 1; transform: translate(-50%, -50%); }
+  html.mobile .sheet-head { padding: 18px 14px 8px 24px; }
+  html.mobile .sheet-head h2 { font-size: 16px; }
+  html.mobile .sheet-body { padding: 4px 24px 26px; }
+
+  /* 覆蓋層的內容也要收窄，否則輸入框會拉到整個螢幕寬 */
+  html.mobile .overlay-inner { max-width: 620px; gap: 16px; }
+  html.mobile .overlay-eyebrow { font-size: 13px; }
+  html.mobile .overlay-title { font-size: 26px; }
+  html.mobile .overlay-sub { font-size: 15px; }
+  html.mobile .dump-text, html.mobile .cut-input { font-size: 17px; padding: 17px 19px; }
+  html.mobile .breath { width: min(340px, 32vh); height: min(340px, 32vh); margin: 22px 0 10px; }
+  html.mobile .breath-word { font-size: 18px; }
+  html.mobile .rest-time { font-size: 52px; }
+  html.mobile .rest-hint { font-size: 15px; margin: 8px 0 10px; }
+  html.mobile .rest-note { font-size: 16px; }
+  html.mobile .pill-btn, html.mobile .text-btn { font-size: 15px; }
+
+  /* 清單在大螢幕上要好按、好讀 */
+  html.mobile .task-text { font-size: 15px; }
+  html.mobile .task-item { padding: 13px 6px 13px 3px; }
+  html.mobile .task-check { width: 26px; height: 26px; }
+  html.mobile .pip { width: 22px; height: 30px; }
+  html.mobile .pip::before { width: 9px; height: 9px; }
+  html.mobile .task-plan, html.mobile .day-plan { font-size: 13px; }
+  html.mobile .life-head { font-size: 14px; }
+  html.mobile .life-head b { font-size: 23px; }
+  html.mobile .life-foot { font-size: 12px; }
+  html.mobile .date-input { font-size: 16px; padding: 9px 12px; }
+  html.mobile .cal-day { font-size: 15px; }
+  html.mobile .cal-num { font-size: 15px; }
+  html.mobile .sess-text, html.mobile .task-sess { font-size: 13px; }
+}
+
+.web-hints {
+  font-size: 11.5px;
+  letter-spacing: .04em;
+  color: var(--faint);
+  text-align: center;
+  max-width: 520px;
+  line-height: 2.1;
+}
+.web-hints kbd {
+  font: inherit;
+  padding: 2px 7px;
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+html.tauri .web-hints { display: none; }
+
+.web-foot {
+  font-size: 11px;
+  letter-spacing: .03em;
+  color: var(--faint);
+  text-align: center;
+  margin-top: -8px;
+}
+.web-foot .sep { padding: 0 4px; }
+.web-foot a { color: color-mix(in srgb, var(--accent) 75%, var(--muted)); text-decoration: none; }
+.web-foot a:hover { text-decoration: underline; }
+html.tauri .web-foot { display: none; }
+
+/* 手機／矮螢幕：卡片改滿版 */
+@media (max-width: 420px), (max-height: 660px) {
+  html:not(.tauri) body { display: block; }
+  html:not(.tauri) .app {
+    width: 100vw;
+    height: 100vh;
+    border-radius: 0;
+    border: 0;
+    box-shadow: none;
+  }
+  html:not(.tauri) .web-hints,
+  html:not(.tauri) .web-foot { display: none; }
+}
+
+/* ———— 標題列 ———— */
+.titlebar {
+  height: 48px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+}
+
+/* 只有按鈕群組浮在遮罩之上：面板開著時仍能直接切到另一個面板，
+   但標題列其餘區域維持可點擊關閉 */
+.win-actions {
+  position: relative;
+  z-index: 12;
+  display: flex;
+  gap: 2px;
+  padding: 10px 10px 0 0;
+}
+
+.icon-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  color: var(--faint);
+  transition: color .18s ease, background-color .18s ease, transform .12s ease;
+}
+.icon-btn svg { width: 17px; height: 17px; }
+.icon-btn:hover { color: var(--muted); background: var(--line); }
+.icon-btn:active { transform: scale(.92); }
+
+#pinBtn.pinned, #audioBtn.on { color: var(--accent); }
+#pinBtn.pinned .pin-body { fill: currentColor; }
+html:not(.tauri) #pinBtn, html.mobile #pinBtn { display: none; } /* 網頁與行動版沒有視窗置頂 */
+
+/* 音景實際出聲時才脈動；只是設定開著則單純上色 */
+#audioBtn.playing svg { animation: audio-pulse 3.2s ease-in-out infinite; }
+@keyframes audio-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .55; }
+}
+
+/* ———— 模式標籤 ———— */
+.mode-row { text-align: center; height: 20px; flex: 0 0 auto; }
+
+.mode-label {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: .38em;
+  padding-left: .38em;
+  color: color-mix(in srgb, var(--accent) 62%, var(--muted));
+  transition: color .5s ease;
+}
+
+/* ———— 任務 chip ———— */
+.task-chip {
+  flex: 0 0 auto;
+  max-width: 280px;
+  margin: 12px auto 0;
+  padding: 6px 14px 6px 11px;
+  border-radius: 999px;
+  background: var(--field);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--muted);
+  transition: background-color .18s ease, color .18s ease;
+}
+.task-chip:hover { background: var(--line); color: var(--ink); }
+#taskChipText {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chip-count {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .02em;
+  color: var(--accent);
+  padding-left: 1px;
+}
+
+.chip-dot {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0;
+  transition: opacity .3s ease;
+}
+.task-chip.has-task .chip-dot { opacity: 1; }
+.task-chip.has-task { color: var(--ink); }
+
+/* ———— 倒數圓環 ———— */
+.ring-wrap {
+  position: relative;
+  width: 244px;
+  height: 244px;
+  margin: 10px auto 0;
+  flex: 0 0 auto;
+}
+
+.ring { width: 100%; height: 100%; display: block; }
+
+.ring-track, .ring-bar { fill: none; stroke-width: 5; stroke-linecap: round; }
+.ring-track { stroke: var(--track); }
+.ring-bar {
+  stroke: var(--accent);
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scaleX(-1) rotate(-90deg);
+  transition: stroke .5s ease;
+}
+
+.ring-wrap.pulse .ring-bar { animation: ring-pulse 1s ease; }
+@keyframes ring-pulse {
+  0%   { stroke-width: 5; }
+  35%  { stroke-width: 8; }
+  100% { stroke-width: 5; }
+}
+
+.ring-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 13px;
+}
+
+.time {
+  font-size: 55px;
+  font-weight: 200;
+  letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  transform: translateY(2px);
+}
+
+.dots { display: flex; gap: 8px; }
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--track);
+  transition: background-color .4s ease, transform .4s ease;
+}
+.dot.done { background: var(--accent); }
+.dot.now {
+  background: var(--accent);
+  opacity: .45;
+  animation: dot-breathe 2.4s ease-in-out infinite;
+}
+@keyframes dot-breathe {
+  0%, 100% { opacity: .3; transform: scale(1); }
+  50%      { opacity: .8; transform: scale(1.25); }
+}
+
+/* ———— 控制列 ———— */
+.controls {
+  flex: 1 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 30px;
+}
+
+.ghost-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  transition: color .18s ease, background-color .18s ease, transform .12s ease;
+}
+.ghost-btn svg { width: 19px; height: 19px; }
+.ghost-btn:hover { color: var(--ink); background: var(--line); }
+.ghost-btn:active { transform: scale(.9); }
+
+.play-btn {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--accent) 26%, transparent);
+  transition: background-color .5s ease, transform .15s ease, box-shadow .5s ease;
+}
+.play-btn svg { width: 26px; height: 26px; }
+.play-btn:hover { transform: scale(1.05); }
+.play-btn:active { transform: scale(.94); }
+.play-btn .ic-play { display: block; margin-left: 3px; }
+.play-btn .ic-pause { display: none; }
+body.running .play-btn .ic-play { display: none; }
+body.running .play-btn .ic-pause { display: block; }
+
+/* ———— 今日統計 ———— */
+/* 注意：.today 是沒有前綴的泛用名稱，其他地方要標「今天」請用專屬 class
+   （月曆格子就曾誤中這條的 padding-bottom 而讓日期數字上移 9px） */
+.today {
+  flex: 0 0 auto;
+  text-align: center;
+  font-size: 11.5px;
+  letter-spacing: .06em;
+  color: var(--faint);
+  padding-bottom: 18px;
+  transition: color .4s ease;
+}
+
+/* ———— 全屏覆蓋層（卸載／休息／收尾） ———— */
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background: var(--bg);
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  opacity: 0;
+  transition: opacity .3s ease;
+}
+html.tauri .overlay { background: var(--bg-glass); }
+/* 行動版沒有毛玻璃視窗，覆蓋層必須不透明，否則底下的計時器會透出來 */
+html.mobile .overlay { background: var(--bg); }
+.overlay.show { opacity: 1; }
+
+.overlay-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: center;
+}
+
+.overlay-eyebrow {
+  font-size: 10.5px;
+  letter-spacing: .3em;
+  padding-left: .3em;
+  color: color-mix(in srgb, var(--accent) 60%, var(--muted));
+}
+
+.overlay-title { font-size: 19px; font-weight: 600; letter-spacing: .01em; text-wrap: balance; }
+.overlay-sub { font-size: 12px; color: var(--muted); line-height: 1.7; text-wrap: balance; }
+
+.dump-text, .cut-input {
+  width: 100%;
+  background: var(--field);
+  border-radius: 12px;
+  padding: 12px 13px;
+  font-size: 13px;
+  line-height: 1.75;
+  resize: none;
+  color: var(--ink);
+}
+.dump-text::placeholder, .cut-input::placeholder { color: var(--faint); }
+.cut-input { padding: 13px; }
+
+.overlay-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  margin-top: 2px;
+}
+.overlay-actions.single { justify-content: center; }
+
+.dump-count {
+  font-size: 12px;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+  min-width: 34px;
+  text-align: left;
+}
+
+.pill-btn {
+  padding: 10px 20px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  background: var(--field);
+  transition: transform .12s ease, filter .18s ease;
+}
+.pill-btn.primary { background: var(--accent); color: var(--on-accent); }
+.pill-btn:hover { filter: brightness(1.06); }
+.pill-btn:active { transform: scale(.96); }
+
+.text-btn {
+  font-size: 11.5px;
+  color: var(--faint);
+  padding: 6px 10px;
+  border-radius: 8px;
+  transition: color .18s ease;
+}
+.text-btn:hover { color: var(--muted); }
+.text-btn.danger:hover { color: var(--c-focus); }
+
+/* ———— 呼吸引導 ———— */
+.rest-inner { gap: 0; }
+
+.breath {
+  position: relative;
+  width: 190px;
+  height: 190px;
+  display: grid;
+  place-items: center;
+  margin: 14px 0 6px;
+}
+
+.breath-ring, .breath-core {
+  position: absolute;
+  border-radius: 50%;
+  animation: breathe 12s ease-in-out infinite;
+}
+.breath-ring {
+  width: 100%;
+  height: 100%;
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.breath-core {
+  width: 74%;
+  height: 74%;
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+}
+/* 吸 4s → 停 2s → 吐 6s */
+@keyframes breathe {
+  0%           { transform: scale(.62); }
+  33.3%        { transform: scale(1); }
+  50%          { transform: scale(1); }
+  100%         { transform: scale(.62); }
+}
+
+.breath-word {
+  position: relative;
+  font-size: 14px;
+  letter-spacing: .3em;
+  padding-left: .3em;
+  color: color-mix(in srgb, var(--accent) 70%, var(--muted));
+}
+
+.rest-time {
+  font-size: 30px;
+  font-weight: 200;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.01em;
+  margin-top: 6px;
+}
+.rest-hint {
+  font-size: 11.5px;
+  color: var(--faint);
+  line-height: 1.8;
+  margin: 4px 0 6px;
+  text-wrap: balance;
+}
+
+/* ———— 底部面板 ———— */
+.backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--backdrop);
+  opacity: 0;
+  transition: opacity .28s ease;
+  z-index: 10;
+}
+.backdrop.show { opacity: 1; }
+
+.sheet {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  z-index: 11;
+  background: var(--sheet);
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, .16);
+  transform: translateY(102%);
+  transition: transform .34s cubic-bezier(.3, .72, .2, 1);
+  max-height: 90%;
+  display: flex;
+  flex-direction: column;
+}
+.sheet.show { transform: translateY(0); }
+
+.sheet-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 12px 6px 20px;
+}
+.sheet-head h2 { font-size: 14px; font-weight: 600; letter-spacing: .14em; }
+
+.sheet-body { padding: 2px 20px 22px; overflow-y: auto; }
+
+.sheet-group {
+  font-size: 10.5px;
+  letter-spacing: .2em;
+  color: var(--faint);
+  padding: 10px 0 2px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.group-note { font-size: 10px; letter-spacing: .02em; }
+
+.row {
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.row-label { font-size: 13.5px; display: flex; flex-direction: column; gap: 1px; }
+.row-label small { font-size: 10.5px; color: var(--faint); letter-spacing: .04em; }
+
+.row-sep { height: 1px; background: var(--line); margin: 6px 0; }
+
+/* 步進器 */
+.stepper { display: flex; align-items: center; gap: 2px; }
+
+.step-btn {
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  font-size: 15px;
+  line-height: 1;
+  transition: all .15s ease;
+}
+.step-btn:hover { color: var(--ink); border-color: var(--faint); }
+.step-btn:active { transform: scale(.9); background: var(--line); }
+.step-btn:disabled { opacity: .35; pointer-events: none; }
+
+.step-val {
+  min-width: 52px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.step-val b { font-size: 14px; font-weight: 600; color: var(--ink); }
+
+/* 開關 */
+.switch-row { cursor: pointer; }
+.switch-row input { position: absolute; opacity: 0; pointer-events: none; }
+
+.switch {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 24px;
+  border-radius: 12px;
+  background: var(--track);
+  position: relative;
+  transition: background-color .22s ease;
+}
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 2.5px; left: 2.5px;
+  width: 19px; height: 19px;
+  border-radius: 50%;
+  background: #FFF;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
+  transition: transform .22s cubic-bezier(.3, .72, .2, 1.2);
+}
+.switch-row input:checked + .switch { background: var(--accent); }
+.switch-row input:checked + .switch::after { transform: translateX(16px); }
+.switch-row input:focus-visible + .switch { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* 分段控制（音景層） */
+.seg-label {
+  font-size: 11.5px;
+  color: var(--muted);
+  padding: 8px 2px 0;
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+.seg-label small { font-size: 10px; color: var(--faint); letter-spacing: .03em; }
+
+.seg {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 3px;
+  padding: 3px;
+  background: var(--field);
+  border-radius: 11px;
+  margin: 4px 0 2px;
+}
+
+.seg-btn {
+  padding: 7px 2px;
+  border-radius: 8px;
+  font-size: 11.5px;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  transition: background-color .2s ease, color .2s ease;
+}
+.seg-btn small { font-size: 9.5px; color: var(--faint); }
+.seg-btn:hover { color: var(--ink); }
+.seg-btn.on {
+  background: var(--sheet);
+  color: var(--ink);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .1);
+}
+.seg-btn.on small { color: color-mix(in srgb, var(--accent) 70%, var(--muted)); }
+
+/* 音量 */
+.range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 140px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--track);
+  cursor: pointer;
+}
+.range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .22);
+}
+.range::-moz-range-thumb {
+  width: 15px;
+  height: 15px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* ———— 待辦事項 ———— */
+.task-form {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  margin: 4px 0 12px;
+}
+
+.task-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: var(--field);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+}
+.task-input::placeholder { color: var(--faint); }
+
+.add-btn {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 17px;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  transition: transform .12s ease, filter .18s ease;
+}
+.add-btn:hover { filter: brightness(1.06); }
+.add-btn:active { transform: scale(.93); }
+
+.task-empty {
+  font-size: 12px;
+  color: var(--faint);
+  line-height: 1.8;
+  padding: 6px 2px 10px;
+  text-wrap: balance;
+}
+
+.task-list { list-style: none; display: flex; flex-direction: column; gap: 2px; }
+
+.task-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 6px 8px 2px;
+  border-radius: 9px;
+  transition: background-color .16s ease;
+}
+.task-item:hover { background: var(--field); }
+.task-item.active { background: color-mix(in srgb, var(--accent) 9%, transparent); }
+
+.task-check {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid var(--faint);
+  display: grid;
+  place-items: center;
+  color: transparent;
+  transition: all .18s ease;
+}
+.task-check svg { width: 10px; height: 10px; }
+.task-check:hover { border-color: var(--accent); }
+.task-item.done .task-check {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.task-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: left;
+  font-size: 13px;
+  line-height: 1.5;
+  word-break: break-word;
+  transition: color .18s ease;
+}
+.task-item.done .task-text { color: var(--faint); text-decoration: line-through; }
+.task-item.active .task-text { font-weight: 600; }
+
+.task-meta {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.task-count {
+  font-size: 10.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .02em;
+}
+
+.task-del {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  color: var(--faint);
+  opacity: 0;
+  transition: opacity .16s ease, color .16s ease;
+}
+.task-del svg { width: 12px; height: 12px; }
+.task-item:hover .task-del { opacity: 1; }
+.task-del:hover { color: var(--c-focus); }
+
+/* ———— 規劃顆數 ———— */
+.task-pips {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+.pip {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+}
+.pip::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1.4px solid var(--faint);
+  transition: background-color .16s ease, border-color .16s ease, transform .16s ease;
+}
+.pip:hover::before { border-color: var(--accent); transform: scale(1.25); }
+.pip.filled::before { background: var(--accent); border-color: var(--accent); }
+/* 做超過規劃：標示出來，但用中性色，不是錯誤 */
+.pip.over::before { border-color: var(--muted); border-style: dashed; }
+.pip.over.filled::before {
+  background: color-mix(in srgb, var(--accent) 42%, transparent);
+  border-style: solid;
+}
+.pip.ghost::before { opacity: .42; border-style: dashed; }
+.pip.ghost:hover::before { opacity: 1; }
+.task-item.done .task-pips { opacity: .45; }
+.pip-more {
+  font-size: 10px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  padding-left: 2px;
+}
+
+.task-group {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 10.5px;
+  color: var(--faint);
+  letter-spacing: .06em;
+  padding: 10px 6px 3px 2px;
+}
+.task-group:first-child { padding-top: 2px; }
+.task-group span { font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+
+.task-date {
+  font-size: 10px;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+  padding-left: 7px;
+  letter-spacing: .02em;
+}
+
+.task-plan {
+  font-size: 11px;
+  color: var(--muted);
+  background: var(--field);
+  border-radius: 8px;
+  padding: 7px 10px;
+  margin-bottom: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.rest-note {
+  font-size: 12px;
+  color: color-mix(in srgb, var(--ink) 62%, transparent);
+  padding-bottom: 2px;
+  text-wrap: balance;
+}
+
+.task-next {
+  font-size: 10.5px;
+  color: color-mix(in srgb, var(--accent) 65%, var(--muted));
+  line-height: 1.6;
+  padding: 0 6px 8px 31px;
+  word-break: break-word;
+}
+
+.task-tip {
+  font-size: 10.5px;
+  color: var(--faint);
+  line-height: 1.8;
+  padding: 12px 2px 2px;
+}
+
+/* 卸載回顧 */
+.dump-recall { font-size: 12px; }
+.dump-recall summary {
+  cursor: pointer;
+  color: var(--muted);
+  padding: 6px 2px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.dump-recall summary::marker { color: var(--faint); }
+.dump-recall summary span { font-size: 10.5px; color: var(--faint); }
+
+.dump-recall-text {
+  font: inherit;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--muted);
+  background: var(--field);
+  border-radius: 10px;
+  padding: 11px 12px;
+  line-height: 1.75;
+  margin: 4px 0;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* ———— 動態偏好 ———— */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* ———— 歷程：月曆 ———— */
+.sheet-tall { max-height: 94%; }
+
+.cal-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0 2px;
+}
+
+.cal-arrow {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 20px;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  transition: color .16s ease, background-color .16s ease;
+}
+.cal-arrow:hover { color: var(--ink); background: var(--field); }
+
+.cal-month { font-size: 14px; font-weight: 600; letter-spacing: .04em; }
+
+.cal-summary {
+  font-size: 11px;
+  color: var(--faint);
+  letter-spacing: .03em;
+  text-align: center;
+  padding-bottom: 10px;
+}
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+
+.cal-dow {
+  font-size: 10px;
+  color: var(--faint);
+  text-align: center;
+  padding-bottom: 4px;
+}
+
+.cal-day {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  background: var(--field);
+  transition: background-color .16s ease, color .16s ease, transform .1s ease;
+}
+.cal-day:hover { transform: scale(1.06); }
+.cal-day:active { transform: scale(.96); }
+
+/* 當天蕃茄數的濃度：越深代表那天做得越多 */
+.cal-day[data-level="1"] { background: color-mix(in srgb, var(--c-focus) 16%, transparent); color: var(--ink); }
+.cal-day[data-level="2"] { background: color-mix(in srgb, var(--c-focus) 32%, transparent); color: var(--ink); }
+.cal-day[data-level="3"] { background: color-mix(in srgb, var(--c-focus) 55%, transparent); color: var(--on-accent); }
+.cal-day[data-level="4"] { background: var(--c-focus); color: var(--on-accent); }
+
+.cal-day.cal-today { box-shadow: inset 0 0 0 1.5px var(--muted); }
+/* 選取用「留白 + 一圈主色」，在濃度最深的格子上也看得出來（純黑框太硬） */
+.cal-day.picked { box-shadow: inset 0 0 0 2px var(--sheet), inset 0 0 0 3.5px var(--accent); }
+
+.cal-count {
+  position: absolute;
+  right: 3px;
+  bottom: 2px;
+  font-size: 8.5px;
+  opacity: .75;
+}
+
+/* ———— 歷程：人生天數 ———— */
+.life {
+  background: var(--field);
+  border-radius: 12px;
+  padding: 12px 14px 13px;
+  margin-bottom: 14px;
+}
+.life-head {
+  font-size: 12.5px;
+  color: var(--muted);
+  letter-spacing: .01em;
+}
+.life-head b {
+  font-size: 19px;
+  font-weight: 600;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.01em;
+  padding: 0 1px;
+}
+.life-bar {
+  height: 5px;
+  border-radius: 999px;
+  background: var(--track);
+  overflow: hidden;
+  margin: 9px 0 7px;
+}
+.life-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width .6s cubic-bezier(.3, .72, .2, 1);
+}
+.life-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 10.5px;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 生日輸入 */
+.date-input {
+  flex: 0 0 auto;
+  background: var(--field);
+  border-radius: 9px;
+  padding: 7px 10px;
+  font-size: 12.5px;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  color-scheme: light dark; /* 原生日期選單跟著深淺色 */
+}
+
+/* ———— 歷程：當日詳情 ———— */
+.day-detail { padding-top: 14px; }
+
+.day-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 8px;
+}
+.day-head h3 { font-size: 13.5px; font-weight: 600; }
+.day-head span { font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; }
+
+.sess-list, .day-tasks { list-style: none; display: flex; flex-direction: column; gap: 1px; }
+
+.sess-list li {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 5px 4px;
+  border-radius: 7px;
+  background: var(--field);
+  margin-bottom: 2px;
+}
+.sess-time {
+  flex: 0 0 auto;
+  font-size: 10.5px;
+  color: color-mix(in srgb, var(--accent) 70%, var(--muted));
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .01em;
+}
+.sess-text {
+  font-size: 12px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 待辦列在這裡是共用的 .task-item，只多兩樣：當天實際做的時段、分段小標 */
+.task-sess {
+  font-size: 10.5px;
+  color: color-mix(in srgb, var(--accent) 70%, var(--muted));
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .01em;
+  line-height: 1.6;
+  padding: 0 6px 7px 31px;
+  word-break: break-word;
+}
+
+.day-plan {
+  font-size: 11px;
+  color: var(--muted);
+  background: var(--field);
+  border-radius: 8px;
+  padding: 7px 10px;
+  margin-bottom: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.day-sub {
+  font-size: 10.5px;
+  color: var(--faint);
+  letter-spacing: .06em;
+  padding: 12px 2px 4px;
+}
+
+.day-add { display: flex; gap: 6px; margin: 10px 0 6px; }
+.day-add input {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: var(--field);
+  border-radius: 9px;
+  padding: 8px 11px;
+  font-size: 12.5px;
+}
+.day-add input::placeholder { color: var(--faint); }
+.day-add input:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 32%, transparent);
+}
+.day-add .add-btn { width: 32px; height: 32px; font-size: 15px; border-radius: 9px; }
+
+.ics-row { display: flex; gap: 8px; padding: 4px 0 2px; }
+.ics-row .pill-btn { flex: 1 1 0; padding: 9px 10px; font-size: 12.5px; }
+
+.text-btn:disabled { opacity: .4; pointer-events: none; }
+
+/* ———— 提示訊息 ———— */
+.toast {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  transform: translate(-50%, 12px);
+  z-index: 30;
+  background: var(--ink);
+  color: var(--bg);
+  font-size: 12px;
+  padding: 9px 16px;
+  border-radius: 999px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .22);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .24s ease, transform .24s ease;
+  max-width: 88%;
+  text-align: center;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+html.mobile .cal-day { font-size: 13px; }
+html.mobile .day-add input { font-size: 16px; }
+
+/* 極窄螢幕（iPhone SE 一代等）：規劃圓點縮回桌面尺寸，
+   否則八顆圓點會把任務文字擠成兩行 */
+@media (max-width: 360px) {
+  html.mobile .pip { width: 15px; }
+  html.mobile .task-del { width: 30px; height: 30px; }
+}

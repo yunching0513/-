@@ -1,0 +1,32 @@
+<!doctype html>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1024px; height: 500px; overflow: hidden;
+    font-family: -apple-system, "PingFang TC", "Noto Sans TC", "Noto Sans CJK TC", sans-serif;
+    background: linear-gradient(118deg, #FAF7F2 0%, #F3EEE4 52%, #EBE4D6 100%);
+    display: flex; align-items: center; gap: 54px; padding: 0 78px;
+    color: #26211C; position: relative;
+  }
+  .ring { position: absolute; right: -96px; top: 50%; transform: translateY(-50%); width: 470px; height: 470px; opacity: .5; }
+  .ring circle { fill: none; stroke-width: 9; stroke-linecap: round; }
+  .track { stroke: #E2DACB; }
+  .bar { stroke: #D0563E; stroke-dasharray: 1319; stroke-dashoffset: 435; transform: rotate(-90deg); transform-origin: center; }
+  img { width: 176px; height: 176px; flex: 0 0 auto; filter: drop-shadow(0 16px 34px rgba(80,52,32,.20)); }
+  .copy { position: relative; z-index: 2; }
+  h1 { font-size: 68px; font-weight: 600; letter-spacing: -.015em; line-height: 1; }
+  h1 em { font-style: normal; color: #C24D36; }
+  .zh { font-size: 30px; font-weight: 500; letter-spacing: .16em; color: #6E655A; margin-top: 16px; }
+  p { font-size: 21px; line-height: 1.6; color: #8D8579; margin-top: 20px; max-width: 26ch; }
+</style>
+<svg class="ring" viewBox="0 0 480 480">
+  <circle class="track" cx="240" cy="240" r="210"/>
+  <circle class="bar" cx="240" cy="240" r="210"/>
+</svg>
+<img src="../../src-tauri/icons/icon.png" alt="">
+<div class="copy">
+  <h1>Flow<em>mato</em></h1>
+  <div class="zh">心 流 鐘</div>
+  <p>先放下腦中的牽掛，<br>再開始 25 分鐘的專注。</p>
+</div>

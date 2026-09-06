@@ -1,0 +1,81 @@
+name: Pomodoro web (GitHub Pages)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["main", "claude/pomodoro-focus-tool-er00mo"]
+    paths:
+      - "pomodoro/ui/**"
+      - ".github/workflows/pomodoro-pages.yml"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同時只跑一個部署，不取消進行中的那個
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy 蕃茄鐘 web
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # GITHUB_TOKEN 無權替 repo 開啟 Pages（需 repo 管理員操作一次），
+      # 所以先偵測狀態：未啟用時給明確指示並正常結束，不讓 PR 一直紅燈。
+      - name: Check Pages status
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/pages")
+          echo "HTTP $code"
+          if [ "$code" = "200" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: How to enable Pages
+        if: steps.check.outputs.ready != 'true'
+        run: |
+          {
+            echo "### 蕃茄鐘網頁版尚未上線 🍅"
+            echo ""
+            echo "GitHub Pages 還沒為這個 repo 啟用，而 Actions 的預設權限無法自行開啟。"
+            echo "請 repo 擁有者做一次性設定："
+            echo ""
+            echo "1. 前往 **Settings → Pages**"
+            echo "2. **Build and deployment → Source** 選 **GitHub Actions**"
+            echo "3. 回到 **Actions → Pomodoro web (GitHub Pages)** 點 **Run workflow**"
+            echo ""
+            echo "完成後網址會是：https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::warning::GitHub Pages 未啟用 — 請到 Settings → Pages 將 Source 設為 GitHub Actions，再重跑此 workflow。"
+
+      - name: Setup Pages
+        if: steps.check.outputs.ready == 'true'
+        uses: actions/configure-pages@v5
+
+      - name: Upload ui/ as Pages artifact
+        if: steps.check.outputs.ready == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: pomodoro/ui
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        if: steps.check.outputs.ready == 'true'
+        uses: actions/deploy-pages@v4
