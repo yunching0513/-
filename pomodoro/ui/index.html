@@ -152,7 +152,7 @@
   <section class="sheet" id="taskSheet" hidden aria-label="待辦事項">
     <header class="sheet-head">
       <h2>待辦事項</h2>
-      <button class="icon-btn close-sheet" title="關閉（Esc）" aria-label="關閉">
+      <button class="icon-btn close-sheet" title="關閉（Esc）" aria-label="關閉面板">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
           <path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>
         </svg>
@@ -183,7 +183,7 @@
   <section class="sheet sheet-tall" id="journalSheet" hidden aria-label="工作歷程">
     <header class="sheet-head">
       <h2>歷程</h2>
-      <button class="icon-btn close-sheet" title="關閉（Esc）" aria-label="關閉">
+      <button class="icon-btn close-sheet" title="關閉（Esc）" aria-label="關閉面板">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
           <path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>
         </svg>
@@ -222,6 +222,15 @@
     </header>
 
     <div class="sheet-body">
+      <p class="seg-label">語言 Language<small>自動＝跟著系統語言</small></p>
+      <div class="seg seg-lang" id="langSeg" role="radiogroup" aria-label="語言">
+        <button class="seg-btn on" data-val="auto" role="radio" aria-checked="true">自動</button>
+        <button class="seg-btn" data-val="zh" role="radio" aria-checked="false">中文</button>
+        <button class="seg-btn" data-val="en" role="radio" aria-checked="false">English</button>
+      </div>
+
+      <div class="row-sep"></div>
+
       <div class="row">
         <span class="row-label">專注時長</span>
         <div class="stepper" data-key="focus" data-min="5" data-max="90" data-step="5">
@@ -268,7 +277,7 @@
 
       <p class="seg-label">專注音樂<small>會自動循環，播完接回開頭</small></p>
       <div class="seg" id="beatSeg" role="radiogroup" aria-label="專注音樂">
-        <button class="seg-btn on" data-val="off" role="radio" aria-checked="true">關閉</button>
+        <button class="seg-btn on" data-val="off" role="radio" aria-checked="true" data-i18n="關閉音樂">關閉</button>
         <button class="seg-btn" data-val="beta" role="radio" aria-checked="false">Beta<small>分析</small></button>
         <button class="seg-btn" data-val="alpha" role="radio" aria-checked="false">Alpha<small>吸收</small></button>
         <button class="seg-btn" data-val="theta" role="radio" aria-checked="false">Theta<small>發散</small></button>
@@ -330,6 +339,7 @@
   <a href="https://github.com/yunching0513/-/tree/main/pomodoro" target="_blank" rel="noopener">下載 macOS App</a>
 </p>
 
+<script src="i18n.js"></script>
 <script src="app.js"></script>
 <script src="journal.js"></script>
 </body>

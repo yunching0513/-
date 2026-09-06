@@ -62,15 +62,15 @@
 
   let viewYear, viewMonth, picked;
 
-  const MONTH_NAMES = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
-  const WEEK = ['日', '一', '二', '三', '四', '五', '六'];
+  const MONTHS = () => I18N.months();
+  const WEEK = () => I18N.week();
 
   /* ———— 月曆 ———— */
   function renderCalendar() {
-    monthLabel.textContent = `${viewYear} 年 ${MONTH_NAMES[viewMonth]}`;
+    monthLabel.textContent = tr('{y} 年 {month}', { y: viewYear, month: MONTHS()[viewMonth] });
     grid.replaceChildren();
 
-    for (const w of WEEK) {
+    for (const w of WEEK()) {
       const h = document.createElement('div');
       h.className = 'cal-dow';
       h.textContent = w;
@@ -106,14 +106,15 @@
         b.textContent = count;
         cell.appendChild(b);
       }
-      cell.setAttribute('aria-label', `${viewMonth + 1} 月 ${d} 日，${count} 顆蕃茄`);
+      cell.setAttribute('aria-label',
+        tr('{m} 月 {d} 日，{n} 顆蕃茄', { m: viewMonth + 1, month: I18N.monthsShort()[viewMonth], d, n: count }));
       cell.addEventListener('click', () => { picked = k; renderCalendar(); renderDay(); });
       grid.appendChild(cell);
     }
 
     monthSum.textContent = mCount > 0
-      ? `這個月 ${mCount} 顆蕃茄 · 專注 ${Math.round(mMin / 60 * 10) / 10} 小時`
-      : '這個月還沒有紀錄';
+      ? tr('這個月 {n} 顆蕃茄 · 專注 {h} 小時', { n: mCount, h: Math.round(mMin / 60 * 10) / 10 })
+      : tr('這個月還沒有紀錄');
   }
 
   /* ———— 當日詳情 ———— */
@@ -133,9 +134,13 @@
     const head = document.createElement('div');
     head.className = 'day-head';
     const h = document.createElement('h3');
-    h.textContent = `${m} 月 ${d} 日 星期${WEEK[dt.getDay()]}`;
+    h.textContent = I18N.lang === 'en'
+      ? `${WEEK()[dt.getDay()]}, ${I18N.monthsShort()[m - 1]} ${d}`
+      : `${m} 月 ${d} 日 星期${WEEK()[dt.getDay()]}`;
     const s = document.createElement('span');
-    s.textContent = count > 0 ? `${count} 顆 · ${minutes} 分鐘` : '沒有紀錄';
+    s.textContent = count > 0
+      ? tr('{n} 顆 · {m} 分鐘', { n: count, m: minutes })
+      : tr('沒有紀錄');
     head.append(h, s);
     detail.appendChild(head);
 
@@ -153,10 +158,10 @@
       const plan = document.createElement('p');
       plan.className = 'day-plan';
       const doneT = dayTasks.filter((t) => t.done).length;
-      plan.textContent = `${dayTasks.length} 件事`
-        + (est > 0 ? ` · 規劃 ${est} 顆` : '')
-        + (count > 0 ? ` · 實際 ${count} 顆` : '')
-        + (doneT > 0 ? ` · 完成 ${doneT} 件` : '');
+      plan.textContent = tr('{n} 件事', { n: dayTasks.length })
+        + (est > 0 ? tr(' · 規劃 {n} 顆', { n: est }) : '')
+        + (count > 0 ? tr(' · 實際 {n} 顆', { n: count }) : '')
+        + (doneT > 0 ? tr(' · 完成 {n} 件', { n: doneT }) : '');
       detail.appendChild(plan);
     }
 
@@ -182,7 +187,7 @@
     if (loose.length) {
       const h = document.createElement('p');
       h.className = 'day-sub';
-      h.textContent = dayTasks.length ? '其他專注' : '專注紀錄';
+      h.textContent = tr(dayTasks.length ? '其他專注' : '專注紀錄');
       detail.appendChild(h);
       const ul = document.createElement('ul');
       ul.className = 'sess-list';
@@ -193,7 +198,7 @@
         time.textContent = `${hhmm(x.s)}–${hhmm(x.e)}`;
         const txt = document.createElement('span');
         txt.className = 'sess-text';
-        txt.textContent = x.tt || '專注';
+        txt.textContent = x.tt || tr('專注');
         li.append(time, txt);
         ul.appendChild(li);
       }
@@ -206,14 +211,14 @@
     const input = document.createElement('input');
     input.type = 'text';
     input.maxLength = 80;
-    input.placeholder = `加一件 ${m}/${d} 要做的事…`;
+    input.placeholder = tr('加一件 {m}/{d} 要做的事…', { m, d });
     input.autocomplete = 'off';
     input.id = 'dayAddInput';
     const add = document.createElement('button');
     add.type = 'submit';
     add.className = 'add-btn';
     add.textContent = '＋';
-    add.setAttribute('aria-label', '新增');
+    add.setAttribute('aria-label', tr('新增'));
     form.append(input, add);
     form.addEventListener('submit', (ev) => {
       ev.preventDefault();
@@ -227,7 +232,7 @@
 
     const ex = document.createElement('button');
     ex.className = 'text-btn';
-    ex.textContent = '匯出這一天到日曆';
+    ex.textContent = tr('匯出這一天到日曆');
     ex.disabled = sessions.length === 0;
     ex.addEventListener('click', () => exportICS(sessions, `flowmato-${picked}.ics`));
     detail.appendChild(ex);
@@ -243,12 +248,13 @@
     if (!s) return;
     lifeBox.replaceChildren();
 
+    /* 數字要能單獨放大，所以把整句拆成「前 / 數字 / 後」三段 */
     const head = document.createElement('p');
     head.className = 'life-head';
-    head.append('已經活了 ');
+    const line = tr('已經活了 {n} 天', { n: '\u0000' }).split('\u0000');
     const b = document.createElement('b');
     b.textContent = nf.format(s.lived);
-    head.append(b, ' 天');
+    head.append(line[0] || '', b, line[1] || '');
     lifeBox.appendChild(head);
 
     const bar = document.createElement('div');
@@ -268,13 +274,14 @@
     pct.textContent = `${(s.pct * 100).toFixed(1)}%`;
     const rest = document.createElement('span');
     rest.textContent = s.left > 0
-      ? `到 ${s.to} 歲還有 ${nf.format(s.left)} 天`
-      : `已經超過 ${s.to} 歲`;
+      ? tr('到 {to} 歲還有 {n} 天', { to: s.to, n: nf.format(s.left) })
+      : tr('已經超過 {to} 歲', { to: s.to });
     foot.append(pct, rest);
     lifeBox.appendChild(foot);
   }
 
   document.addEventListener('pomo:life-changed', () => { if (!sheet.hidden) renderLife(); });
+  document.addEventListener('pomo:lang-changed', () => { if (!sheet.hidden) renderAll(); });
 
   const renderAll = () => { renderLife(); renderCalendar(); renderDay(); };
 
@@ -311,7 +318,7 @@
       'PRODID:-//Flowmato//Focus Log//TW',
       'CALSCALE:GREGORIAN',
       'METHOD:PUBLISH',
-      'X-WR-CALNAME:Flowmato 專注紀錄',
+      `X-WR-CALNAME:${tr('Flowmato 專注紀錄')}`,
     ];
     for (const x of sessions) {
       if (!x.s || !x.e) continue;
@@ -321,7 +328,7 @@
         `DTSTAMP:${now}`,
         `DTSTART:${icsTime(x.s)}`,
         `DTEND:${icsTime(x.e)}`,
-        fold(`SUMMARY:🍅 ${esc(x.tt || '專注')}`),
+        fold(`SUMMARY:🍅 ${esc(x.tt || tr('專注'))}`),
         fold(`DESCRIPTION:${esc(`專注 ${x.m} 分鐘`)}`),
         'CATEGORIES:Flowmato',
         'TRANSP:TRANSPARENT',
@@ -334,7 +341,7 @@
 
   async function exportICS(sessions, filename) {
     const list = sessions.filter((x) => x.s && x.e);
-    if (!list.length) { toast('這段期間沒有可匯出的紀錄'); return; }
+    if (!list.length) { toast(tr('這段期間沒有可匯出的紀錄')); return; }
     const ics = buildICS(list);
 
     // 桌面版：用系統存檔對話框
@@ -342,11 +349,11 @@
       try {
         const path = await TAURI.dialog.save({
           defaultPath: filename,
-          filters: [{ name: '日曆檔', extensions: ['ics'] }],
+          filters: [{ name: tr('日曆檔'), extensions: ['ics'] }],
         });
         if (!path) return;
         await TAURI.fs.writeTextFile(path, ics);
-        toast(`已存檔：${list.length} 筆紀錄`);
+        toast(tr('已存檔：{n} 筆紀錄', { n: list.length }));
         return;
       } catch { /* 落到下面的下載方式 */ }
     }
@@ -365,9 +372,9 @@
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 4000);
-      toast(`已匯出 ${list.length} 筆紀錄`);
+      toast(tr('已匯出 {n} 筆紀錄', { n: list.length }));
     } catch {
-      toast('這個環境無法下載檔案');
+      toast(tr('這個環境無法下載檔案'));
     }
   }
 
@@ -395,6 +402,7 @@
           </p>
         </div>`;
       document.querySelector('.app').appendChild(box);
+      I18N.apply(box); // 這塊是動態插入的，靜態文字要自己補翻一次
       box.querySelector('#icsClose').addEventListener('click', () => {
         box.classList.remove('show');
         setTimeout(() => { box.hidden = true; }, 300);
@@ -403,16 +411,17 @@
         const ta = box.querySelector('#icsText');
         try {
           await navigator.clipboard.writeText(ta.value);
-          toast('已複製到剪貼簿');
+          toast(tr('已複製到剪貼簿'));
         } catch {
           ta.select();               // 剪貼簿被擋時退回手動選取
-          toast('請按 ⌘C／Ctrl+C 複製');
+          toast(tr('請按 ⌘C／Ctrl+C 複製'));
         }
       });
     }
     box.querySelector('#icsText').value = ics;
     box.querySelector('#icsName').textContent = filename;
-    box.querySelector('#icsHint').textContent = `${count} 段專注紀錄。這個畫面裡無法直接下載檔案。`;
+    box.querySelector('#icsHint').textContent =
+      tr('{n} 段專注紀錄。這個畫面裡無法直接下載檔案。', { n: count });
     box.hidden = false;
     requestAnimationFrame(() => box.classList.add('show'));
   }

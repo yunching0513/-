@@ -836,6 +836,9 @@ html.mobile .overlay { background: var(--bg); }
   margin: 4px 0 2px;
 }
 
+/* 語言只有三個選項，不是預設的四欄 */
+.seg-lang { grid-template-columns: repeat(3, 1fr); }
+
 .seg-btn {
   padding: 7px 2px;
   border-radius: 8px;
