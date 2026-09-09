@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nochmal — learn German by drilling it</title>
+<meta name="description" content="An English-to-German A1 trainer built on spaced repetition, anticipation drills and shadowing, with Google Cloud Text-to-Speech for the model voice.">
+<meta name="theme-color" content="#F7F4EE" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#15161A" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23C8452F'/%3E%3Ctext x='32' y='45' font-family='Georgia,serif' font-size='40' font-weight='700' fill='%23FDF8F1' text-anchor='middle'%3EN%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">N</span>
+      <span class="brand-name">Nochmal</span>
+      <span class="brand-sub">German A1 · drill</span>
+    </div>
+    <nav class="nav" role="tablist">
+      <button class="nav-btn is-on" data-view="home" role="tab">Practice</button>
+      <button class="nav-btn" data-view="units" role="tab">Course</button>
+      <button class="nav-btn" data-view="stats" role="tab">Progress</button>
+      <button class="nav-btn" data-view="settings" role="tab">Settings</button>
+    </nav>
+    <div class="top-right">
+      <span class="streak" id="streakChip" title="Days practised in a row">🔥 <b id="streakNum">0</b></span>
+    </div>
+  </header>
+
+  <main class="main">
+
+    <!-- ————————————————— Practice ————————————————— -->
+    <section class="view is-on" id="viewHome">
+      <div class="hero">
+        <h1>What do you want to drill today?</h1>
+        <p class="lede">
+          Every sentence comes back just before you would have forgotten it. Say it out loud
+          <em>before</em> you see the answer: the gap is where the learning happens.
+        </p>
+      </div>
+
+      <div class="stat-row" id="homeStats"></div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Session</h2>
+          <span class="hint" id="poolHint"></span>
+        </div>
+
+        <div class="field">
+          <label>Drill</label>
+          <div class="chip-row" id="modeChips">
+            <button class="chip is-on" data-mode="mixed">
+              <b>Mixed</b><span>Adapts to how well you know each sentence</span>
+            </button>
+            <button class="chip" data-mode="recall">
+              <b>Recall</b><span>English in, German out, from memory</span>
+            </button>
+            <button class="chip" data-mode="listen">
+              <b>Dictation</b><span>Hear it, type what you heard</span>
+            </button>
+            <button class="chip" data-mode="shadow">
+              <b>Shadow</b><span>Repeat right after the voice, compare recordings</span>
+            </button>
+            <button class="chip" data-mode="speak">
+              <b>Speak</b><span>Say it; the app checks it word by word</span>
+            </button>
+            <button class="chip" data-mode="build">
+              <b>Word order</b><span>Assemble the sentence from its words</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Material</label>
+          <select id="scopeSelect" class="select"></select>
+        </div>
+
+        <div class="field field-row">
+          <div>
+            <label for="sizeRange">Cards this session <b id="sizeVal">20</b></label>
+            <input type="range" id="sizeRange" min="5" max="60" step="5" value="20">
+          </div>
+          <div>
+            <label for="newRange">New sentences allowed <b id="newVal">6</b></label>
+            <input type="range" id="newRange" min="0" max="20" step="1" value="6">
+          </div>
+        </div>
+
+        <p class="micro" id="previewLine"></p>
+        <button class="cta" id="startBtn">Start drilling</button>
+        <p class="micro" id="ttsStatus"></p>
+      </div>
+    </section>
+
+    <!-- ————————————————— Drill ————————————————— -->
+    <section class="view" id="viewDrill">
+      <div class="drill-top">
+        <button class="ghost" id="quitBtn" title="End session (Esc)">← End</button>
+        <div class="progress"><div class="progress-bar" id="progressBar"></div></div>
+        <span class="counter" id="counter">0 / 0</span>
+      </div>
+
+      <article class="card" id="card">
+        <div class="card-head">
+          <span class="mode-tag" id="modeTag">Recall</span>
+          <span class="unit-tag" id="unitTag"></span>
+          <span class="spacer"></span>
+          <span class="due-tag" id="dueTag"></span>
+        </div>
+
+        <!-- 提示區：Recall 給英文，Dictation 只給聲音 -->
+        <div class="prompt" id="prompt"></div>
+
+        <!-- Pimsleur 的預期停頓：這條在跑的時候，你應該正在出聲 -->
+        <div class="anticipate" id="anticipate" hidden>
+          <div class="anticipate-bar"><i id="anticipateFill"></i></div>
+          <span class="anticipate-label">Say it now…</span>
+        </div>
+
+        <!-- 作答區，依模式切換 -->
+        <div class="answerbox" id="answerBox"></div>
+
+        <!-- 逐字回饋：貼著作答區，先看自己錯在哪 -->
+        <div class="feedback" id="feedback" hidden></div>
+
+        <!-- 揭曉區 -->
+        <div class="reveal" id="reveal" hidden>
+          <p class="de" id="deText"></p>
+          <div class="audio-row">
+            <button class="audio-btn" id="playBtn" title="Play (R)">▶ Normal</button>
+            <button class="audio-btn" id="slowBtn" title="Play slowly (S)">▶ Slow</button>
+            <button class="audio-btn" id="crawlBtn" title="Play very slowly">▶ Word by word</button>
+            <span class="audio-note" id="audioNote"></span>
+          </div>
+          <p class="en" id="enText"></p>
+          <p class="lit" id="litText" hidden></p>
+          <p class="note" id="noteText" hidden></p>
+        </div>
+
+      </article>
+
+      <div class="grade-row" id="gradeRow" hidden>
+        <button class="grade g-again" data-grade="0"><b>Again</b><span>1</span></button>
+        <button class="grade g-hard"  data-grade="1"><b>Hard</b><span>2</span></button>
+        <button class="grade g-good"  data-grade="2"><b>Good</b><span>3</span></button>
+        <button class="grade g-easy"  data-grade="3"><b>Easy</b><span>4</span></button>
+      </div>
+
+      <div class="showrow" id="showRow">
+        <button class="cta cta-slim" id="showBtn">Show the answer <kbd>Space</kbd></button>
+      </div>
+
+      <p class="keys" id="keys">
+        <kbd>Space</kbd> reveal / next · <kbd>1–4</kbd> grade · <kbd>R</kbd> replay ·
+        <kbd>S</kbd> slow · <kbd>M</kbd> microphone · <kbd>Esc</kbd> end
+      </p>
+
+      <!-- 練習結束 -->
+      <div class="done" id="doneCard" hidden>
+        <h2>Session done</h2>
+        <div class="stat-row" id="doneStats"></div>
+        <p class="micro" id="doneNext"></p>
+        <div class="done-actions">
+          <button class="cta" id="againBtn">Another round</button>
+          <button class="ghost" id="homeBtn">Back to practice</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ————————————————— Course ————————————————— -->
+    <section class="view" id="viewUnits">
+      <div class="hero">
+        <h1>The course</h1>
+        <p class="lede">
+          Twelve units following the everyday A1 topics: greetings through to talking about
+          last weekend. Tap any sentence to hear it. The bar shows how well the unit has settled.
+        </p>
+      </div>
+      <div id="unitList"></div>
+    </section>
+
+    <!-- ————————————————— Progress ————————————————— -->
+    <section class="view" id="viewStats">
+      <div class="hero">
+        <h1>Progress</h1>
+        <p class="lede">
+          A sentence counts as <b>settled</b> once its review interval passes three weeks.
+          Getting there takes a handful of separated recalls: that is the whole point of the method.
+        </p>
+      </div>
+      <div class="stat-row" id="bigStats"></div>
+      <div class="panel">
+        <div class="panel-head"><h2>Coming up</h2><span class="hint">Reviews falling due over the next fortnight</span></div>
+        <div class="forecast" id="forecast"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>Weakest sentences</h2><span class="hint">Most forgotten so far</span></div>
+        <div id="weakList" class="weak-list"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>Your data</h2><span class="hint">Everything lives in this browser only</span></div>
+        <div class="btn-row">
+          <button class="ghost" id="exportBtn">Export progress (.json)</button>
+          <button class="ghost" id="importBtn">Import progress</button>
+          <input type="file" id="importFile" accept="application/json" hidden>
+          <button class="ghost danger" id="resetBtn">Reset all progress</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ————————————————— Settings ————————————————— -->
+    <section class="view" id="viewSettings">
+      <div class="hero">
+        <h1>Settings</h1>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Google Cloud Text-to-Speech</h2>
+          <span class="hint" id="voiceCount"></span>
+        </div>
+        <p class="micro">
+          Without a key the app speaks with your browser’s built-in German voice, which is
+          usually flat and robotic. A Google key gives you the Chirp3&nbsp;HD and Neural2 voices,
+          which is what makes shadowing worth doing. Every clip is cached in this browser, so
+          repeating a sentence a hundred times costs one synthesis.
+        </p>
+        <div class="field">
+          <label for="keyInput">API key</label>
+          <div class="key-row">
+            <input type="password" id="keyInput" class="input" placeholder="AIza…" autocomplete="off" spellcheck="false">
+            <button class="ghost" id="keyToggle" title="Show / hide">👁</button>
+            <button class="ghost" id="keyTest">Test</button>
+          </div>
+          <p class="micro" id="keyMsg"></p>
+          <details class="how">
+            <summary>How to get a key, and how to keep it safe</summary>
+            <ol>
+              <li>Open <a href="https://console.cloud.google.com/" target="_blank" rel="noreferrer noopener">Google Cloud Console</a> and create (or pick) a project.</li>
+              <li>Enable <b>Cloud Text-to-Speech API</b> under APIs &amp; Services → Library.</li>
+              <li>Credentials → Create credentials → <b>API key</b>.</li>
+              <li>Open the key and restrict it: <b>API restrictions</b> → Cloud Text-to-Speech API only; <b>Application restrictions</b> → HTTP referrers, listing only the address you run this app from.</li>
+              <li>Paste it above. It is stored in this browser’s localStorage and sent only to
+                  <code>texttospeech.googleapis.com</code>.</li>
+            </ol>
+            <p>The free tier covers 1&nbsp;million standard characters and 100k WaveNet/Neural2 characters
+               a month. A1 sentences run 30–60 characters, and the cache means each one is billed once.</p>
+          </details>
+        </div>
+
+        <div class="field">
+          <label for="voiceSelect">Voice</label>
+          <div class="key-row">
+            <select id="voiceSelect" class="select"></select>
+            <button class="ghost" id="voicePreview">Preview</button>
+          </div>
+        </div>
+
+        <div class="field field-row">
+          <div>
+            <label for="rateRange">Normal speed <b id="rateVal">1.00×</b></label>
+            <input type="range" id="rateRange" min="0.6" max="1.2" step="0.05" value="1">
+          </div>
+          <div>
+            <label for="slowRange">Slow speed <b id="slowVal">0.70×</b></label>
+            <input type="range" id="slowRange" min="0.3" max="1" step="0.05" value="0.7">
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button class="ghost" id="warmBtn">Pre-cache the current unit’s audio</button>
+          <button class="ghost" id="cacheClearBtn">Clear audio cache</button>
+          <span class="micro" id="cacheMsg"></span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h2>Drilling</h2></div>
+        <div class="field field-row">
+          <div>
+            <label for="pauseRange">Anticipation pause <b id="pauseVal">4.0 s</b></label>
+            <input type="range" id="pauseRange" min="0" max="10" step="0.5" value="4">
+            <p class="micro">The silence between the prompt and the answer. Fill it out loud —
+              recall only strengthens memory when you actually attempt it.</p>
+          </div>
+          <div>
+            <label>Options</label>
+            <label class="check"><input type="checkbox" id="optAutoPlay" checked> Play the German automatically on reveal</label>
+            <label class="check"><input type="checkbox" id="optLit" checked> Show the word-for-word gloss</label>
+            <label class="check"><input type="checkbox" id="optAutoAdvance"> Move on by itself when you get it exactly right</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h2>About</h2></div>
+        <p class="micro">
+          Nochmal drills in two nested loops. <b>Within a session</b> a missed sentence returns after
+          3, then 8, then 16 other cards: Pimsleur’s graduated interval recall. <b>Across days</b>
+          each sentence carries an SM-2 ease factor, so the gap grows 1 → 4 → 10 → 25 days as long as
+          you keep getting it right. Nothing is uploaded; progress and audio stay in this browser.
+        </p>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="content/course.js"></script>
+<script src="lib/scheduler.js"></script>
+<script src="lib/tts.js"></script>
+<script src="lib/speech.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
