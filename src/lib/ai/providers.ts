@@ -22,12 +22,12 @@ export const MODELS: Record<Provider, ProviderModel[]> = {
   anthropic: [
     {
       provider: "anthropic",
-      label: "Claude 3.5 Haiku（最廣相容）",
-      id: "claude-3-5-haiku-20241022",
+      label: "Claude Haiku 4.5",
+      id: "claude-haiku-4-5-20251001",
       default: true,
     },
-    { provider: "anthropic", label: "Claude Haiku 4.5（新版）", id: "claude-haiku-4-5-20251001" },
     { provider: "anthropic", label: "Claude Sonnet 4.6", id: "claude-sonnet-4-6" },
+    { provider: "anthropic", label: "Claude Sonnet 5", id: "claude-sonnet-5" },
     { provider: "anthropic", label: "Claude Opus 4.8", id: "claude-opus-4-8" },
   ],
   openai: [
@@ -182,19 +182,14 @@ export function translateError(
       `${providerName} 帳戶餘額不足或未設定付款方式。請至該供應商 console 加入信用卡或購買 credits。`,
     );
   }
-  if (status === 403 || /forbidden|not allowed|permission/i.test(raw)) {
-    const isNewClaude = /claude-(haiku-4|sonnet-4|opus-4)/i.test(model);
-    const hint =
-      provider === "anthropic" && isNewClaude
-        ? "\n\n常見解法：去「設定」把模型改為「Claude 3.5 Haiku（最廣相容）」— " +
-          "這個版本舊但便宜，幾乎所有 Anthropic 帳戶都能用。"
-        : provider === "anthropic"
-          ? "\n\n建議：去 console.anthropic.com 確認帳戶已驗證（含信用卡），且 workspace 有此模型存取權。"
-          : "\n\n建議改用該供應商的「預設小模型」或檢查帳戶設定。";
+  if (status === 403 || /forbidden|not allowed|permission|User location/i.test(raw)) {
+    // 已確認的根因：Strata 伺服器（Vercel Hobby）位於香港節點，
+    // Anthropic 與 Google 均封鎖香港 IP 的推理請求。key 本身通常沒問題。
     return new Error(
-      `${providerName} 拒絕請求（403）— 你的 key 沒有權限使用 ${model}。可能原因：` +
-        `(a) 帳戶尚未驗證；(b) workspace 限制了模型存取；(c) 該模型較新、key 未授權。` +
-        hint,
+      `${providerName} 拒絕了來自 Strata 伺服器的請求（伺服器位於香港，` +
+        `${providerName} 封鎖該地區的 API 呼叫）。你的 key 本身可能完全正常。` +
+        `\n\n解法：到「設定」貼上你自己的 API key — Strata 會改從你的瀏覽器直接呼叫` +
+        `${providerName}（你的所在地區不受限制），完全繞過伺服器。`,
     );
   }
   if (status === 429 || /rate.*limit/i.test(raw)) {

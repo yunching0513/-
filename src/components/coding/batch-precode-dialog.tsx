@@ -31,11 +31,22 @@ interface Candidate {
   end: number;
 }
 
+interface CandidateStats {
+  /** raw segments cut from the document (before filtering) */
+  totalRaw: number;
+  /** dropped because they overlap an existing coded segment */
+  overlapped: number;
+  /** dropped because shorter than min */
+  tooShort: number;
+  /** long segments that were auto-split into smaller chunks */
+  splitCount: number;
+}
+
 function buildCandidates(
   text: string,
   existing: CodedSegment[],
   opts: { min: number; max: number },
-): Candidate[] {
+): { candidates: Candidate[]; stats: CandidateStats } {
   // Try speaker tags first
   const speakerRe = /[【(\[]([^】)\]：:]{1,20})[】)\]]\s*[：:]\s*/g;
   const matches: { idx: number; tagLen: number; speaker: string }[] = [];
@@ -68,13 +79,76 @@ function buildCandidates(
     raw = parts;
   }
 
-  // Filter: length bounds + not overlapping existing segments
+  // Auto-split overlong segments at sentence boundaries — critical for
+  // committee transcripts where a single speech often exceeds the max.
+  let splitCount = 0;
+  const sized: Candidate[] = [];
+  for (const c of raw) {
+    if (c.text.length <= opts.max) {
+      sized.push(c);
+      continue;
+    }
+    splitCount++;
+    const body = text.slice(c.start, c.end);
+    let chunkStartLocal = 0;
+    let lastCut = 0;
+    for (let i = 0; i < body.length; i++) {
+      const isEnder = "。！？；\n".includes(body[i]);
+      const lenSoFar = i + 1 - chunkStartLocal;
+      if (isEnder) lastCut = i + 1;
+      if (lenSoFar >= opts.max || i === body.length - 1) {
+        // cut at the last sentence ender if we have one; else hard cut
+        const cutAt = lastCut > chunkStartLocal ? lastCut : i + 1;
+        const piece = body.slice(chunkStartLocal, cutAt);
+        const trimmed = piece.trim();
+        if (trimmed.length > 0) {
+          sized.push({
+            speaker: c.speaker,
+            text: trimmed,
+            start: c.start + chunkStartLocal,
+            end: c.start + cutAt,
+          });
+        }
+        chunkStartLocal = cutAt;
+        lastCut = cutAt;
+        if (i === body.length - 1 && chunkStartLocal < body.length) {
+          const tail = body.slice(chunkStartLocal).trim();
+          if (tail.length > 0) {
+            sized.push({
+              speaker: c.speaker,
+              text: tail,
+              start: c.start + chunkStartLocal,
+              end: c.end,
+            });
+          }
+        }
+      }
+    }
+  }
+
   function overlapsExisting(c: Candidate) {
     return existing.some((s) => s.start < c.end && c.start < s.end);
   }
-  return raw
-    .filter((c) => c.text.length >= opts.min && c.text.length <= opts.max)
-    .filter((c) => !overlapsExisting(c));
+
+  let tooShort = 0;
+  let overlapped = 0;
+  const candidates: Candidate[] = [];
+  for (const c of sized) {
+    if (c.text.length < opts.min) {
+      tooShort++;
+      continue;
+    }
+    if (overlapsExisting(c)) {
+      overlapped++;
+      continue;
+    }
+    candidates.push(c);
+  }
+
+  return {
+    candidates,
+    stats: { totalRaw: sized.length, overlapped, tooShort, splitCount },
+  };
 }
 
 interface AiResult {
@@ -114,11 +188,14 @@ export function BatchPrecodeDialog({
   const [skipUncoded, setSkipUncoded] = useState(true);
   const cancelRef = useState({ current: false })[0];
 
-  const candidates = useMemo(
+  const { candidates, stats } = useMemo(
     () =>
       open
         ? buildCandidates(documentText, existingSegments, { min: 8, max: 600 })
-        : [],
+        : {
+            candidates: [] as Candidate[],
+            stats: { totalRaw: 0, overlapped: 0, tooShort: 0, splitCount: 0 },
+          },
     [open, documentText, existingSegments],
   );
 
@@ -255,7 +332,7 @@ export function BatchPrecodeDialog({
 
               <div className="grid grid-cols-3 gap-px bg-border">
                 <Stat label="候選片段" value={String(candidates.length)} />
-                <Stat label="跳過（已編碼）" value={String(existingSegments.length)} />
+                <Stat label="跳過（與既有編碼重疊）" value={String(stats.overlapped)} />
                 <Stat
                   label="估算 Token"
                   value={`${(estTokens / 1000).toFixed(1)}K`}
@@ -263,11 +340,33 @@ export function BatchPrecodeDialog({
                 />
               </div>
 
+              {stats.splitCount > 0 && (
+                <p className="text-[11px] text-muted-foreground">
+                  {stats.splitCount} 段過長發言已自動依句切分為較小片段。
+                </p>
+              )}
+
               {cantStart && (
                 <div className="flex items-start gap-2 border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
                   <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                   <span>
-                    無候選片段。可能是文件太短、已全部編碼完，或無法切出符合長度範圍（8–600 字）的段落。
+                    {stats.totalRaw > 0 && stats.overlapped >= stats.totalRaw - stats.tooShort ? (
+                      <>
+                        <span className="font-medium text-foreground">
+                          這份文件的段落已全部編碼過
+                        </span>
+                        （共切出 {stats.totalRaw} 段，其中 {stats.overlapped}{" "}
+                        段與既有編碼重疊）。AI 不會重複編碼同一範圍 —
+                        請到「文件」頁切換到其他文件，或從「資料源」匯入新文本。
+                      </>
+                    ) : stats.totalRaw === 0 ? (
+                      <>這份文件切不出任何段落 — 可能是空白或格式特殊。</>
+                    ) : (
+                      <>
+                        共切出 {stats.totalRaw} 段：{stats.overlapped} 段與既有編碼重疊、
+                        {stats.tooShort} 段過短（少於 8 字），沒有可編碼的新段落。
+                      </>
+                    )}
                   </span>
                 </div>
               )}

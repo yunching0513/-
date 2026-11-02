@@ -1,0 +1,19 @@
+{
+  "name": "flowmato",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Flowmato 心流鐘 — 順應大腦限制的專注工具",
+  "scripts": {
+    "dev": "tauri dev",
+    "build:mac": "tauri build",
+    "tauri": "tauri",
+    "icons": "node scripts/gen-icons.mjs",
+    "preflight:ios": "node scripts/preflight-ios.mjs",
+    "build:single": "node scripts/build-single.mjs",
+    "screenshots": "node scripts/store/shoot.mjs",
+    "logo": "node scripts/gen-logo.mjs"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.11.2"
+  }
+}

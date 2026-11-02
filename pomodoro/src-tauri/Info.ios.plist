@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Tauri 會自動把這個檔合併進產生出來的 Info.plist（放在 tauri.conf.json 旁邊即可，
+  不需要在設定裡指定路徑）。只列出要覆寫或新增的 key，其餘由 Tauri 產生。
+-->
+<plist version="1.0">
+<dict>
+  <!-- 不含任何自訂加密。沒有這個 key 的話，每次上傳 App Store Connect
+       都會攔下來問出口合規（Export Compliance），要手動回答才能送審。 -->
+  <key>ITSAppUsesNonExemptEncryption</key>
+  <false/>
+
+  <!-- 版面是為直向設計的（環形計時器 + 底部面板），橫向會很難看。
+       鎖直向，順便避開審查對「未針對裝置最佳化」的意見。 -->
+  <key>UISupportedInterfaceOrientations</key>
+  <array>
+    <string>UIInterfaceOrientationPortrait</string>
+  </array>
+
+  <!-- 介面主要語言，影響 App Store 上顯示的預設語系 -->
+  <key>CFBundleDevelopmentRegion</key>
+  <string>zh-Hant</string>
+</dict>
+</plist>

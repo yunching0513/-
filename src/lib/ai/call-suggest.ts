@@ -64,7 +64,7 @@ export async function callAiSuggest(args: SuggestArgs): Promise<SuggestResult> {
 
 function defaultModelFor(provider: Provider): string {
   return provider === "anthropic"
-    ? "claude-3-5-haiku-20241022"
+    ? "claude-haiku-4-5-20251001"
     : provider === "openai"
       ? "gpt-4o-mini"
       : provider === "gemini"

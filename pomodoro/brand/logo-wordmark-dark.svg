@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="41 69 1042 261" width="1042" height="261" role="img" aria-label="Flowmato">
+  <g transform="translate(0,26) scale(0.62)">
+  <circle cx="256" cy="300" r="150" stroke="#3A342C" stroke-width="30" fill="none"/>
+  <path d="M 317.0 163.0 A 150 150 0 1 1 123.6 370.4" stroke="#D0563E" stroke-width="30" stroke-linecap="round" fill="none"/>
+  
+  <path d="M 256 126 L 256 162" stroke="#4E8F5B" stroke-width="16" stroke-linecap="round" fill="none"/>
+  <path d="M 260 158 C 279 134, 310 127, 333 136 C 326 160, 296 174, 260 164 Z" fill="#4E8F5B"/>
+  <path d="M 252 158 C 233 134, 202 127, 179 136 C 186 160, 216 174, 252 164 Z" fill="#4E8F5B"/></g>
+  <text x="392" y="243" font-family="Outfit, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif"
+        font-size="150" font-weight="600" letter-spacing="-2" fill="#EFEAE2">Flowmato</text>
+</svg>

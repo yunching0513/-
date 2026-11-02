@@ -13,12 +13,14 @@ import {
   Trash2,
   Loader2,
   AlertCircle,
+  GraduationCap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/input";
 import { BatchPrecodeDialog } from "@/components/coding/batch-precode-dialog";
 import { ShortcutsHelp } from "@/components/coding/shortcuts-help";
+import { CoachTour, type TourStep } from "@/components/tour/coach-tour";
 import {
   useCodingShortcuts,
   buildKeyHints,
@@ -38,6 +40,48 @@ type Active =
   | { kind: "draft"; text: string; start: number; end: number; speaker?: string }
   | null;
 
+const TOUR_STEPS: TourStep[] = [
+  {
+    target: "",
+    title: "歡迎來到編碼工作台",
+    body: "這是 Strata 的核心。接下來 60 秒帶你認識質性編碼的完整流程 — 從選取文本、套用編碼、到 AI 輔助。",
+    hint: "隨時按 Esc 結束；→ 或點任意處前進。",
+  },
+  {
+    target: "reader",
+    title: "① 逐字稿閱讀區",
+    body: "文件全文顯示在這裡。用滑鼠拖曳選取任何一段文字，就能建立編碼片段。有底色的文字是已經編碼過的片段 — 點它可以重新編輯。",
+    hint: "青色底線 = 表層編碼；紫色虛線 = 深層；橘色 = 兩者交織（Hybrid）。",
+  },
+  {
+    target: "panel",
+    title: "② 編碼面板",
+    body: "選中片段後在這裡工作：點編碼晶片套用「表層（程序正義）」與「深層（行為經濟學）」編碼、標記信心度、寫備註。兩軸都有編碼時會自動判定 Hybrid 策略並比對 7 種模式。",
+  },
+  {
+    target: "ai",
+    title: "③ AI 結構化建議",
+    body: "按這顆按鈕，AI 會依編碼簿的 Chain-of-Thought 五步驟逐步推理，建議編碼、判定 Hybrid、撰寫交織剖析。你可以一鍵全部套用，或只參考。",
+    hint: "AI 是助手不是裁判 — 最終判斷永遠在研究者手上。",
+  },
+  {
+    target: "batch",
+    title: "④ 整份文件批次預編碼",
+    body: "長文件不用一段段點。這顆按鈕會自動切出所有段落、讓 AI 逐段編碼，你再逐一複核。可設定只自動套用高信心度的結果。",
+  },
+  {
+    target: "shortcuts",
+    title: "⑤ 鍵盤快捷鍵",
+    body: "熟練後全程不用滑鼠：數字鍵套表層、Q–T 套深層、N/P 跳片段、Shift+H/M/L 標信心度。按 ? 隨時查看完整列表。",
+  },
+  {
+    target: "",
+    title: "完成！接下來",
+    body: "編碼累積後，到「視覺化」看 7 種圖表（頻次、共現熱力圖、Hybrid 模式、時間軸…），或一鍵匯出 Excel / ATLAS.ti。想要新語料就到「資料源」— 立法院逐字稿、質詢、公民提案任你搜。",
+    hint: "想重看教學？按右上的「教學」按鈕。",
+  },
+];
+
 export default function CodingWorkspacePage() {
   const codebook = useActiveCodebook();
   const document = useActiveDocument();
@@ -49,6 +93,17 @@ export default function CodingWorkspacePage() {
   const [popover, setPopover] = useState<{ x: number; y: number } | null>(null);
   const [batchOpen, setBatchOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+
+  // Coach tour: auto-start on first visit, replayable from the header
+  const tutorialDone = useStrata((s) => s.tutorial_done);
+  const setTutorialDone = useStrata((s) => s.setTutorialDone);
+  const [tourOpen, setTourOpen] = useState(false);
+  useEffect(() => {
+    if (!tutorialDone) {
+      const t = setTimeout(() => setTourOpen(true), 600);
+      return () => clearTimeout(t);
+    }
+  }, [tutorialDone]);
 
   // Store actions for shortcut handlers
   const toggleCode = useStrata((s) => s.toggleCode);
@@ -118,7 +173,7 @@ export default function CodingWorkspacePage() {
             }
           : undefined,
     },
-    !batchOpen && !helpOpen,
+    !batchOpen && !helpOpen && !tourOpen,
   );
 
   return (
@@ -132,7 +187,12 @@ export default function CodingWorkspacePage() {
             </div>
           </div>
           <div className="flex gap-2">
-            <Button size="sm" variant="outline" onClick={() => setBatchOpen(true)}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setBatchOpen(true)}
+              data-tour="batch"
+            >
               <Sparkles className="h-4 w-4" />
               AI 預編碼整份
             </Button>
@@ -141,11 +201,21 @@ export default function CodingWorkspacePage() {
               variant="ghost"
               onClick={() => setHelpOpen(true)}
               title="鍵盤快捷鍵（?）"
+              data-tour="shortcuts"
             >
               <kbd className="rounded-sm border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px]">
                 ?
               </kbd>
               <span className="text-xs text-muted-foreground">快捷鍵</span>
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setTourOpen(true)}
+              title="重播互動教學"
+            >
+              <GraduationCap className="h-4 w-4" />
+              <span className="text-xs text-muted-foreground">教學</span>
             </Button>
             <Button size="sm" variant="ghost" disabled>
               <Save className="h-4 w-4" />
@@ -201,6 +271,15 @@ export default function CodingWorkspacePage() {
       />
 
       <ShortcutsHelp open={helpOpen} onClose={() => setHelpOpen(false)} codebook={codebook} />
+
+      <CoachTour
+        steps={TOUR_STEPS}
+        open={tourOpen}
+        onClose={() => {
+          setTourOpen(false);
+          setTutorialDone(true);
+        }}
+      />
     </div>
   );
 }
@@ -254,7 +333,7 @@ function TextReader({
   }
 
   return (
-    <div className="overflow-y-auto px-8 py-10 scrollbar-thin">
+    <div className="overflow-y-auto px-8 py-10 scrollbar-thin" data-tour="reader">
       <div className="mx-auto max-w-3xl">
         <p className="eyebrow mb-1">逐字稿</p>
         <p className="mb-6 text-xs text-muted-foreground">
@@ -563,7 +642,7 @@ function CodingPanel({
   const isHybrid = !!seg.derived?.is_hybrid_strategy;
 
   return (
-    <aside className="flex flex-col overflow-hidden bg-surface">
+    <aside className="flex flex-col overflow-hidden bg-surface" data-tour="panel">
       <PanelHeader
         title="編輯片段"
         subtitle={seg.speaker ?? "（未指定發言者）"}
@@ -899,7 +978,7 @@ function AiSuggestSection({
   const modelLabel = buildAiLabel(ai_provider, ai_model, ai_tier);
 
   return (
-    <section className="border border-border bg-muted/40 p-4">
+    <section className="border border-border bg-muted/40 p-4" data-tour="ai">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-xs font-medium">
           <Sparkles className="h-3.5 w-3.5" /> AI 結構化建議

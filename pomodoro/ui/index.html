@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Flowmato 心流鐘</title>
+<meta name="description" content="順應大腦限制的專注工具：思緒卸載、蕃茄鐘循環、DMN 休息鎖定、腦波同步音訊。">
+<meta name="theme-color" content="#F6F4F0" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1A1815" media="(prefers-color-scheme: dark)">
+<meta property="og:title" content="Flowmato 心流鐘">
+<meta property="og:description" content="思緒卸載、蕃茄鐘循環、DMN 休息鎖定、腦波同步音訊。資料只存在你的瀏覽器。">
+<meta property="og:type" content="website">
+<link rel="icon" href="favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="favicon.png">
+<script>if (window.__TAURI__) document.documentElement.classList.add('tauri');</script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-mode="focus">
+
+<main class="app" id="app">
+  <header class="titlebar" data-tauri-drag-region>
+    <div class="win-actions">
+      <button id="audioBtn" class="icon-btn" title="專注音訊（A）" aria-label="專注音訊" aria-pressed="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+          <path d="M4 14v-2.5a8 8 0 0 1 16 0V14"/>
+          <path d="M4 13.5h2.2a.8.8 0 0 1 .8.8v3.4a.8.8 0 0 1-.8.8H5.4A1.4 1.4 0 0 1 4 17.1Z" fill="currentColor" stroke="none" class="cup"/>
+          <path d="M20 13.5h-2.2a.8.8 0 0 0-.8.8v3.4a.8.8 0 0 0 .8.8h.8a1.4 1.4 0 0 0 1.4-1.4Z" fill="currentColor" stroke="none" class="cup"/>
+        </svg>
+      </button>
+      <button id="journalBtn" class="icon-btn" title="歷程（J）" aria-label="工作歷程">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3.5" y="5.5" width="17" height="15" rx="2.6"/>
+          <path d="M3.5 10h17M8.5 3.5v4M15.5 3.5v4"/>
+          <circle cx="8.4" cy="14" r="1.15" fill="currentColor" stroke="none"/>
+          <circle cx="12" cy="14" r="1.15" fill="currentColor" stroke="none"/>
+          <circle cx="15.6" cy="17.2" r="1.15" fill="currentColor" stroke="none"/>
+        </svg>
+      </button>
+      <button id="pinBtn" class="icon-btn" title="釘選在最上層" aria-label="釘選在最上層" aria-pressed="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path class="pin-body" d="M9 10.6V7a3 3 0 1 1 6 0v3.6l2.05 2.9a.9.9 0 0 1-.74 1.5H7.69a.9.9 0 0 1-.74-1.5Z"/>
+          <path d="M12 15.5V21"/>
+        </svg>
+      </button>
+      <button id="setBtn" class="icon-btn" title="設定（⌘,）" aria-label="設定">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+          <path d="M4 7.5h8.4M17.6 7.5H20M4 12h2.4M11.6 12H20M4 16.5h9.9M18.6 16.5H20"/>
+          <circle cx="15" cy="7.5" r="2.1"/>
+          <circle cx="9" cy="12" r="2.1"/>
+          <circle cx="16.2" cy="16.5" r="2.1"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="mode-row">
+    <span id="modeLabel" class="mode-label">專注</span>
+  </div>
+
+  <button id="taskChip" class="task-chip" title="待辦事項（T）">
+    <span class="chip-dot"></span>
+    <span id="taskChipText">＋ 這回合要完成什麼？</span>
+    <span id="taskChipCount" class="chip-count" hidden></span>
+  </button>
+
+  <div class="ring-wrap" id="ringWrap">
+    <svg class="ring" viewBox="0 0 260 260" aria-hidden="true">
+      <circle class="ring-track" cx="130" cy="130" r="118"/>
+      <circle class="ring-bar" id="ringBar" cx="130" cy="130" r="118"/>
+    </svg>
+    <div class="ring-center">
+      <div id="time" class="time">25:00</div>
+      <div class="dots" id="dots" title="第 4 輪專注後進入長休息">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="resetBtn" class="ghost-btn" title="重設（R）" aria-label="重設">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1L3.5 8.3"/>
+        <path d="M3.5 3.5v4.8h4.8"/>
+      </svg>
+    </button>
+    <button id="playBtn" class="play-btn" title="開始／暫停（空白鍵）" aria-label="開始">
+      <svg class="ic-play" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round">
+        <path d="M9.2 6.6v10.8l9-5.4z"/>
+      </svg>
+      <svg class="ic-pause" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+        <rect x="8.1" y="6.4" width="2.7" height="11.2" rx="1.2"/>
+        <rect x="13.2" y="6.4" width="2.7" height="11.2" rx="1.2"/>
+      </svg>
+    </button>
+    <button id="skipBtn" class="ghost-btn" title="跳過這一段（S）" aria-label="跳過">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M6.5 6.8v10.4a.5.5 0 0 0 .77.42l8.1-5.2a.5.5 0 0 0 0-.84l-8.1-5.2a.5.5 0 0 0-.77.42Z"/>
+        <path d="M18 6.5v11"/>
+      </svg>
+    </button>
+  </div>
+
+  <footer class="today" id="today">準備好開始專注了嗎？</footer>
+
+  <!-- ———— 暖身：思緒卸載盒 ———— -->
+  <section class="overlay dump-overlay" id="dumpOverlay" hidden aria-label="思緒卸載">
+    <div class="overlay-inner">
+      <p class="overlay-eyebrow">開始前 · 卸載</p>
+      <h2 class="overlay-title">腦中還掛心著什麼？</h2>
+      <p class="overlay-sub">寫下來，工作記憶就不必再替你記著。</p>
+      <textarea id="dumpText" class="dump-text" rows="5" placeholder="・要回覆的訊息&#10;・還沒決定的事&#10;・等一下要做的下一步…"></textarea>
+      <div class="overlay-actions">
+        <span class="dump-count" id="dumpCount">60</span>
+        <button id="dumpDone" class="pill-btn primary">放下了，開始專注</button>
+      </div>
+      <button id="dumpSkip" class="text-btn">這次跳過</button>
+    </div>
+  </section>
+
+  <!-- ———— 休息鎖定：DMN 呼吸引導 ———— -->
+  <section class="overlay rest-overlay" id="restOverlay" hidden aria-label="休息中">
+    <div class="overlay-inner rest-inner">
+      <p class="overlay-eyebrow" id="restEyebrow">休息 · 讓大腦離線</p>
+      <div class="breath">
+        <div class="breath-ring"></div>
+        <div class="breath-core"></div>
+        <span class="breath-word" id="breathWord">吸氣</span>
+      </div>
+      <p class="rest-time" id="restTime">5:00</p>
+      <p class="rest-note" id="restNote" hidden></p>
+      <p class="rest-hint">別滑手機。看向遠方，或就只是呼吸。</p>
+      <button id="restEnd" class="text-btn">提前結束休息</button>
+    </div>
+  </section>
+
+  <!-- ———— Clean Cut：下次起點 ———— -->
+  <section class="overlay cut-overlay" id="cutOverlay" hidden aria-label="收尾">
+    <div class="overlay-inner">
+      <p class="overlay-eyebrow">收尾 · 乾淨切斷</p>
+      <h2 class="overlay-title" id="cutTitle">完成一顆蕃茄 🍅</h2>
+      <p class="overlay-sub">留一句話給下次的你，大腦才會真的放下這件事。</p>
+      <input id="cutInput" class="cut-input" type="text" placeholder="下次從哪裡接續？">
+      <div class="overlay-actions single">
+        <button id="cutSave" class="pill-btn primary">存檔，休息去</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="backdrop" id="backdrop" hidden></div>
+
+  <!-- ———— 待辦事項 ———— -->
+  <section class="sheet" id="taskSheet" hidden aria-label="待辦事項">
+    <header class="sheet-head">
+      <h2>待辦事項</h2>
+      <button class="icon-btn close-sheet" title="關閉（Esc）" aria-label="關閉">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+          <path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>
+        </svg>
+      </button>
+    </header>
+    <div class="sheet-body">
+      <form class="task-form" id="taskForm">
+        <input id="taskInput" class="task-input" type="text" maxlength="80" placeholder="加一件要專注完成的事…" autocomplete="off">
+        <button type="submit" class="add-btn" aria-label="新增">＋</button>
+      </form>
+      <p class="task-empty" id="taskEmpty">還沒有待辦。先寫下這回合最重要的那一件。</p>
+      <p class="task-plan" id="taskPlan" hidden></p>
+      <ul class="task-list" id="taskList"></ul>
+      <p class="task-tip">點文字＝設為本回合目標；點第幾個圓點＝規劃幾顆蕃茄，實心的是已經做掉的。這份清單和「歷程」是同一份。</p>
+
+      <div id="dumpRecall" hidden>
+        <div class="row-sep"></div>
+        <details class="dump-recall">
+          <summary>先前卸下的牽掛<span id="dumpStamp"></span></summary>
+          <pre id="dumpRecallText" class="dump-recall-text"></pre>
+          <button id="dumpClear" class="text-btn danger">清空</button>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- ———— 歷程 ———— -->
+  <section class="sheet sheet-tall" id="journalSheet" hidden aria-label="工作歷程">
+    <header class="sheet-head">
+      <h2>歷程</h2>
+      <button class="icon-btn close-sheet" title="關閉（Esc）" aria-label="關閉">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+          <path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>
+        </svg>
+      </button>
+    </header>
+    <div class="sheet-body">
+      <section id="lifeBox" class="life" hidden aria-label="人生天數"></section>
+      <div class="cal-nav">
+        <button id="calPrev" class="cal-arrow" aria-label="上個月">‹</button>
+        <span id="calMonth" class="cal-month"></span>
+        <button id="calNext" class="cal-arrow" aria-label="下個月">›</button>
+      </div>
+      <p id="calSummary" class="cal-summary"></p>
+      <div id="calGrid" class="cal-grid"></div>
+      <div id="dayDetail" class="day-detail"></div>
+
+      <div class="row-sep"></div>
+      <p class="sheet-group">匯出到日曆<small class="group-note">.ics 可匯入 Google／Apple／Outlook</small></p>
+      <div class="ics-row">
+        <button id="icsMonth" class="pill-btn">這個月</button>
+        <button id="icsAll" class="pill-btn">全部紀錄</button>
+      </div>
+      <p class="task-tip">匯出的檔案每段專注是一個日曆事件，含起訖時間與當時的任務名稱。</p>
+    </div>
+  </section>
+
+  <!-- ———— 設定 ———— -->
+  <section class="sheet" id="sheet" hidden aria-label="設定">
+    <header class="sheet-head">
+      <h2>設定</h2>
+      <button class="icon-btn close-sheet" title="關閉（Esc）" aria-label="關閉設定">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+          <path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>
+        </svg>
+      </button>
+    </header>
+
+    <div class="sheet-body">
+      <div class="row">
+        <span class="row-label">專注時長</span>
+        <div class="stepper" data-key="focus" data-min="5" data-max="90" data-step="5">
+          <button class="step-btn" data-dir="-1" aria-label="減少">−</button>
+          <span class="step-val"><b>25</b> 分</span>
+          <button class="step-btn" data-dir="1" aria-label="增加">＋</button>
+        </div>
+      </div>
+      <div class="row">
+        <span class="row-label">短休息</span>
+        <div class="stepper" data-key="short" data-min="1" data-max="30" data-step="1">
+          <button class="step-btn" data-dir="-1" aria-label="減少">−</button>
+          <span class="step-val"><b>5</b> 分</span>
+          <button class="step-btn" data-dir="1" aria-label="增加">＋</button>
+        </div>
+      </div>
+      <div class="row">
+        <span class="row-label">長休息<small>每 4 輪專注後</small></span>
+        <div class="stepper" data-key="long" data-min="5" data-max="45" data-step="5">
+          <button class="step-btn" data-dir="-1" aria-label="減少">−</button>
+          <span class="step-val"><b>15</b> 分</span>
+          <button class="step-btn" data-dir="1" aria-label="增加">＋</button>
+        </div>
+      </div>
+
+      <div class="row-sep"></div>
+      <p class="sheet-group">心流輔助</p>
+
+      <label class="row switch-row">
+        <span class="row-label">開始前先卸載思緒<small>清除注意力殘留</small></span>
+        <input type="checkbox" id="optWarmup" checked><i class="switch"></i>
+      </label>
+      <label class="row switch-row">
+        <span class="row-label">休息時鎖定畫面<small>呼吸引導，恢復 DMN</small></span>
+        <input type="checkbox" id="optRestLock" checked><i class="switch"></i>
+      </label>
+      <label class="row switch-row">
+        <span class="row-label">結束時留下次起點<small>乾淨切斷</small></span>
+        <input type="checkbox" id="optCleanCut" checked><i class="switch"></i>
+      </label>
+
+      <div class="row-sep"></div>
+      <p class="sheet-group">專注音景<small class="group-note">兩層可疊加，A 鍵一鍵靜音</small></p>
+
+      <p class="seg-label">專注音樂<small>會自動循環，播完接回開頭</small></p>
+      <div class="seg" id="beatSeg" role="radiogroup" aria-label="專注音樂">
+        <button class="seg-btn on" data-val="off" role="radio" aria-checked="true">關閉</button>
+        <button class="seg-btn" data-val="beta" role="radio" aria-checked="false">Beta<small>分析</small></button>
+        <button class="seg-btn" data-val="alpha" role="radio" aria-checked="false">Alpha<small>吸收</small></button>
+        <button class="seg-btn" data-val="theta" role="radio" aria-checked="false">Theta<small>發散</small></button>
+      </div>
+
+      <label class="row switch-row">
+        <span class="row-label">和聲鋪底<small>ambient 織體，休息時轉大調</small></span>
+        <input type="checkbox" id="optPad"><i class="switch"></i>
+      </label>
+      <div class="row">
+        <span class="row-label">音量</span>
+        <input type="range" id="optVolume" class="range" min="0" max="100" value="35" aria-label="音量">
+      </div>
+
+      <div class="row-sep"></div>
+      <p class="sheet-group">人生<small class="group-note">填了生日才會顯示，只存在本機</small></p>
+      <div class="row">
+        <span class="row-label">生日<small>在「歷程」頁看已過與剩餘天數</small></span>
+        <input type="date" id="optBirth" class="date-input" aria-label="生日">
+      </div>
+      <div class="row">
+        <span class="row-label">想活到<small>剩餘天數以這個歲數計算</small></span>
+        <div class="stepper" data-key="lifeTo" data-min="50" data-max="120" data-step="5">
+          <button class="step-btn" data-dir="-1" aria-label="減少">−</button>
+          <span class="step-val"><b>100</b> 歲</span>
+          <button class="step-btn" data-dir="1" aria-label="增加">＋</button>
+        </div>
+      </div>
+
+      <div class="row-sep"></div>
+      <p class="sheet-group">提示</p>
+
+      <label class="row switch-row">
+        <span class="row-label">自動開始休息</span>
+        <input type="checkbox" id="optAutoBreak" checked><i class="switch"></i>
+      </label>
+      <label class="row switch-row">
+        <span class="row-label">休息後自動開始專注</span>
+        <input type="checkbox" id="optAutoFocus"><i class="switch"></i>
+      </label>
+      <label class="row switch-row">
+        <span class="row-label">提示音</span>
+        <input type="checkbox" id="optSound" checked><i class="switch"></i>
+      </label>
+      <label class="row switch-row">
+        <span class="row-label">桌面通知</span>
+        <input type="checkbox" id="optNotify" checked><i class="switch"></i>
+      </label>
+    </div>
+  </section>
+</main>
+
+<p class="web-hints" aria-hidden="true">
+  <kbd>空白鍵</kbd> 開始／暫停　<kbd>T</kbd> 待辦　<kbd>J</kbd> 歷程　<kbd>A</kbd> 音訊　<kbd>R</kbd> 重設　<kbd>S</kbd> 跳過　<kbd>⌘,</kbd> 設定
+</p>
+<p class="web-foot">
+  待辦與紀錄只存在這台裝置的瀏覽器，不會上傳
+  <span class="sep">·</span>
+  <a href="https://github.com/yunching0513/-/tree/main/pomodoro" target="_blank" rel="noopener">下載 macOS App</a>
+</p>
+
+<script src="app.js"></script>
+<script src="journal.js"></script>
+</body>
+</html>

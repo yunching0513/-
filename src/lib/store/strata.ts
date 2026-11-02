@@ -12,7 +12,7 @@ import { SAMPLE_DOCUMENT, SAMPLE_SEGMENTS } from "../seed/sample-segments";
  * entire data layer.
  */
 
-export type SourceKind = "upload" | "join" | "ly" | "gazette";
+export type SourceKind = "upload" | "join" | "ly" | "gazette" | "sample";
 
 export interface StrataDocument {
   id: string;
@@ -46,6 +46,10 @@ interface State {
   ai_api_key: string;
   /** User-chosen model id within the active provider. Empty = provider default. */
   ai_model: string;
+  /** Set to true once user finishes the onboarding flow (or skips). */
+  onboarding_complete: boolean;
+  /** Set to true once the coding-workspace coach tour finished (or skipped). */
+  tutorial_done: boolean;
 }
 
 interface Actions {
@@ -73,6 +77,10 @@ interface Actions {
   setAiProvider: (provider: "anthropic" | "openai" | "gemini" | "taide") => void;
   setAiApiKey: (key: string) => void;
   setAiModel: (model: string) => void;
+  setOnboardingComplete: (done: boolean) => void;
+  setTutorialDone: (done: boolean) => void;
+  /** Clear all sample documents + their segments, keeping user uploads. */
+  clearSampleData: () => void;
   resetToSample: () => void;
 }
 
@@ -86,6 +94,8 @@ const initialState: State = {
   ai_provider: "anthropic",
   ai_api_key: "",
   ai_model: "",
+  onboarding_complete: false,
+  tutorial_done: false,
 };
 
 export const useStrata = create<State & Actions>()(
@@ -251,6 +261,29 @@ export const useStrata = create<State & Actions>()(
       setAiApiKey: (key) => set({ ai_api_key: key }),
 
       setAiModel: (model) => set({ ai_model: model }),
+
+      setOnboardingComplete: (done) => set({ onboarding_complete: done }),
+
+      setTutorialDone: (done) => set({ tutorial_done: done }),
+
+      clearSampleData: () =>
+        set((s) => {
+          const sampleDocIds = new Set(
+            s.documents.filter((d) => d.source_kind === "sample").map((d) => d.id),
+          );
+          const remainingDocs = s.documents.filter((d) => !sampleDocIds.has(d.id));
+          const remainingSegs = s.segments.filter(
+            (seg) => !sampleDocIds.has(seg.document_id),
+          );
+          return {
+            documents: remainingDocs,
+            segments: remainingSegs,
+            active_document_id:
+              remainingDocs.find((d) => d.id === s.active_document_id)
+                ? s.active_document_id
+                : remainingDocs[0]?.id ?? "",
+          };
+        }),
 
       resetToSample: () => set({ ...initialState }),
     }),

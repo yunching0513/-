@@ -149,11 +149,11 @@ export const SAMPLE_SEGMENTS: CodedSegment[] = [
 
 export const SAMPLE_DOCUMENT = {
   id: "doc_demo",
-  name: "範例：都更公聽會逐字稿節錄.docx",
+  name: "🧪 示範資料｜都更公聽會逐字稿節錄.docx",
   uploaded_at: "2026-04-30T08:55:00Z",
   size_bytes: 28_440,
   page_count: 12,
-  source_kind: "upload" as const,
+  source_kind: "sample" as const,
   source_date: "2026-04-30",
   parsed_text:
     SAMPLE_SEGMENTS.map((s) => `【${s.speaker}】${s.text}`).join("\n\n") +

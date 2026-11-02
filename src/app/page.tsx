@@ -44,7 +44,7 @@ export default function HomePage() {
             登入
           </Link>
           <Button asChild size="sm">
-            <Link href="/app">開始使用</Link>
+            <Link href="/onboard">開始使用</Link>
           </Button>
         </div>
       </nav>
@@ -70,7 +70,7 @@ export default function HomePage() {
               </p>
               <div className="mt-10 flex items-center gap-6">
                 <Button asChild size="lg">
-                  <Link href="/app">
+                  <Link href="/onboard">
                     免費開始 <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>

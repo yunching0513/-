@@ -1,11 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "regions": ["nrt1"],
   "functions": {
     "src/app/api/parse/route.ts": { "maxDuration": 60 },
     "src/app/api/ai/suggest/route.ts": { "maxDuration": 60 },
     "src/app/api/ai/test/route.ts": { "maxDuration": 30 },
+    "src/app/api/ai/anthropic-diagnose/route.ts": { "maxDuration": 30 },
     "src/app/api/sources/gazette/route.ts": { "maxDuration": 60 },
     "src/app/api/sources/gazette/text/route.ts": { "maxDuration": 60 },
     "src/app/api/sources/ly/route.ts": { "maxDuration": 60 },
