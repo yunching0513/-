@@ -31,6 +31,9 @@ write(join(ICONS, 'icon.ico'), makeICO([[16, desk[16]], [32, desk[32]], [64, des
 write(join(ICONS, 'tray-icon.png'), encodePNG(drawTrayIcon(22), 22, 22));
 write(join(ICONS, 'tray-icon@2x.png'), encodePNG(drawTrayIcon(44), 44, 44));
 
+/* 網頁版分頁圖示 */
+write(join(ROOT, 'ui', 'favicon.png'), desk[128]);
+
 /* ———— iOS：滿版方形、不得含透明通道、圓角由系統套用 ———— */
 rmSync(join(ICONS, 'ios'), { recursive: true, force: true });
 const IOS_SET = [
@@ -76,3 +79,4 @@ console.log('  桌面    →', ICONS);
 console.log('  iOS     →', join(ICONS, 'ios'), `(${IOS_SET.length} 個尺寸)`);
 console.log('  Android →', join(ICONS, 'android'), `(${DENSITIES.length} 種密度 × 4 檔)`);
 console.log('  商店    →', STORE);
+console.log('  favicon →', join(ROOT, 'ui', 'favicon.png'));

@@ -23,6 +23,8 @@ const DEFAULTS = {
   autoBreak: true, autoFocus: false, sound: true, notify: true, pinned: false,
   warmup: true, restLock: true, cleanCut: true,
   audio: 'off', pad: false, muted: false, volume: 35,
+  birth: '',   // 'YYYY-MM-DD'，空字串＝不顯示人生天數
+  lifeTo: 100, // 想活到幾歲，剩餘天數以此為準
 };
 const settings = Object.assign({}, DEFAULTS, store.get('pomo.settings.v1', {}));
 const saveSettings = () => store.set('pomo.settings.v1', settings);
@@ -46,6 +48,28 @@ function bumpToday(minutes) {
   store.set('pomo.stats.v1', stats);
 }
 const todayStats = () => (stats.date === todayKey() ? stats : { count: 0, minutes: 0 });
+
+/* ———— 人生天數 ———— */
+/* 用「日期」相減而不是毫秒差：跨日光節約時間時毫秒差會少一小時，天數就少算一天 */
+const daysBetween = (a, b) => Math.round(
+  (Date.UTC(b.getFullYear(), b.getMonth(), b.getDate())
+ - Date.UTC(a.getFullYear(), a.getMonth(), a.getDate())) / 86400000);
+
+function lifeStats() {
+  const raw = settings.birth;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw || '')) return null;
+  const [y, m, d] = raw.split('-').map(Number);
+  const birth = new Date(y, m - 1, d);
+  if (Number.isNaN(+birth) || birth.getDate() !== d) return null; // 例如 2/30
+  const today = new Date();
+  const lived = daysBetween(birth, today);
+  if (lived < 0) return null; // 生日填在未來
+  /* 2/29 出生的話，非閏年沒有那一天，Date 會自動落到 3/1 */
+  const to = settings.lifeTo;
+  const left = daysBetween(today, new Date(y + to, m - 1, d));
+  const total = lived + Math.max(0, left);
+  return { lived, left, total, pct: total ? lived / total : 1, to };
+}
 
 /* ———— 待辦事項（原則一：認知卸載） ———— */
 /* 每件事都綁一個日期，待辦清單與歷程看的是同一份資料：
@@ -197,7 +221,7 @@ function render() {
     el.time.textContent = text;
     if (!el.restOverlay.hidden) el.restTime.textContent = text;
     syncTray(text);
-    if (!TAURI) document.title = state.running ? `${text} — Flowmato` : 'Flowmato 心流鐘';
+    if (!TAURI) document.title = state.running ? `${text} — Flowmato` : tr('Flowmato 心流鐘');
   }
   el.ringBar.style.strokeDashoffset = `${CIRC * (1 - rem / durMs(state.mode))}`;
 }
@@ -205,8 +229,8 @@ function render() {
 function renderMeta() {
   el.body.dataset.mode = state.mode;
   el.body.classList.toggle('running', state.running);
-  el.modeLabel.textContent = MODE_LABEL[state.mode];
-  el.playBtn.setAttribute('aria-label', state.running ? '暫停' : '開始');
+  el.modeLabel.textContent = tr(MODE_LABEL[state.mode]);
+  el.playBtn.setAttribute('aria-label', tr(state.running ? '暫停' : '開始'));
 
   const filled = state.mode === 'long' ? LONG_EVERY : state.completed % LONG_EVERY;
   el.dots.forEach((d, i) => {
@@ -214,22 +238,23 @@ function renderMeta() {
     d.classList.toggle('now', state.mode === 'focus' && state.running && i === filled);
   });
 
-  const t = todayStats();
-  el.today.textContent = t.count > 0
-    ? `今天已完成 ${t.count} 顆蕃茄 · 專注 ${t.minutes} 分鐘`
-    : '準備好開始專注了嗎？';
+  const s = todayStats();
+  el.today.textContent = s.count > 0
+    ? tr('今天已完成 {n} 顆蕃茄 · 專注 {m} 分鐘', { n: s.count, m: s.minutes })
+    : tr('準備好開始專注了嗎？');
 }
 
 function renderChip() {
   const t = activeTask();
   el.taskChip.classList.toggle('has-task', !!t);
-  el.taskChipText.textContent = t ? t.text : '＋ 這回合要完成什麼？';
+  el.taskChipText.textContent = t ? t.text : tr('＋ 這回合要完成什麼？');
   // 專注時把進度擺在眼前：還差幾顆，比「做了幾顆」更能撐住這一輪
   el.taskChipCount.textContent = t && t.est > 0 ? `${t.tomatoes}/${t.est}` : '';
   el.taskChipCount.hidden = !(t && t.est > 0);
   el.taskChip.title = t
-    ? `本回合目標：${t.text}${t.est > 0 ? `（規劃 ${t.est} 顆，已完成 ${t.tomatoes} 顆）` : ''}`
-    : '待辦事項（T）';
+    ? tr('本回合目標：{text}', { text: t.text })
+      + (t.est > 0 ? tr('（規劃 {n} 顆，已完成 {done} 顆）', { n: t.est, done: t.tomatoes }) : '')
+    : tr('待辦事項（T）');
 }
 
 const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5 10-11"/></svg>';
@@ -242,8 +267,8 @@ function taskPips(t) {
   wrap.className = 'task-pips';
   wrap.setAttribute('role', 'group');
   wrap.setAttribute('aria-label', t.est > 0
-    ? `規劃 ${t.est} 顆蕃茄，已完成 ${t.tomatoes} 顆`
-    : '尚未規劃蕃茄數');
+    ? tr('規劃 {n} 顆蕃茄，已完成 {done} 顆', { n: t.est, done: t.tomatoes })
+    : tr('尚未規劃蕃茄數'));
 
   const shown = Math.min(EST_MAX, Math.max(t.est, t.tomatoes));
   for (let i = 1; i <= shown; i++) {
@@ -251,7 +276,7 @@ function taskPips(t) {
     pip.className = 'pip';
     if (i <= t.tomatoes) pip.classList.add('filled');
     if (i > t.est) pip.classList.add('over'); // 做超過規劃了，標出來但不責備
-    pip.title = i === t.est ? '取消規劃' : `規劃 ${i} 顆`;
+    pip.title = i === t.est ? tr('取消規劃') : tr('規劃 {n} 顆', { n: i });
     pip.setAttribute('aria-label', pip.title);
     pip.addEventListener('click', () => setEst(t.id, i === t.est ? i - 1 : i));
     wrap.appendChild(pip);
@@ -259,7 +284,7 @@ function taskPips(t) {
   if (shown < EST_MAX) {
     const add = document.createElement('button');
     add.className = 'pip ghost';
-    add.title = `規劃 ${shown + 1} 顆`;
+    add.title = tr('規劃 {n} 顆', { n: shown + 1 });
     add.setAttribute('aria-label', add.title);
     add.addEventListener('click', () => setEst(t.id, shown + 1));
     wrap.appendChild(add);
@@ -282,13 +307,13 @@ function taskRow(t, { dated = false } = {}) {
   const check = document.createElement('button');
   check.className = 'task-check';
   check.innerHTML = ICON_CHECK;
-  check.setAttribute('aria-label', t.done ? '標記為未完成' : '標記為完成');
+  check.setAttribute('aria-label', tr(t.done ? '標記為未完成' : '標記為完成'));
   check.addEventListener('click', () => toggleDone(t.id));
 
   const text = document.createElement('button');
   text.className = 'task-text';
   text.textContent = t.text; // 使用者輸入一律走 textContent
-  text.title = t.done ? '已完成' : '設為本回合目標';
+  text.title = tr(t.done ? '已完成' : '設為本回合目標');
   text.addEventListener('click', () => { if (!t.done) setActive(t.id); });
 
   if (dated) {
@@ -305,7 +330,7 @@ function taskRow(t, { dated = false } = {}) {
   const del = document.createElement('button');
   del.className = 'task-del';
   del.innerHTML = ICON_X;
-  del.setAttribute('aria-label', '刪除');
+  del.setAttribute('aria-label', tr('刪除'));
   del.addEventListener('click', () => removeTask(t.id));
   meta.appendChild(del);
 
@@ -316,7 +341,7 @@ function taskRow(t, { dated = false } = {}) {
 function nextRow(t) {
   const nx = document.createElement('li');
   nx.className = 'task-next';
-  nx.textContent = `↳ 下次：${t.next}`;
+  nx.textContent = tr('↳ 下次：{text}', { text: t.next });
   return nx;
 }
 
@@ -335,9 +360,9 @@ function renderTasks() {
   el.taskList.replaceChildren();
   const g = groupTasks();
   const groups = [
-    ['carry', '先前未完成', g.carry],
-    ['today', '今天', g.today],
-    ['later', '之後', g.later],
+    ['carry', tr('先前未完成'), g.carry],
+    ['today', tr('今天'), g.today],
+    ['later', tr('之後'), g.later],
   ].filter(([, , list]) => list.length);
 
   el.taskEmpty.hidden = groups.length > 0;
@@ -352,7 +377,7 @@ function renderTasks() {
       h.append(label);
       if (planned > 0) {
         const s = document.createElement('span');
-        s.textContent = `還欠 ${planned} 顆`;
+        s.textContent = tr('還欠 {n} 顆', { n: planned });
         h.appendChild(s);
       }
       el.taskList.appendChild(h);
@@ -373,8 +398,8 @@ function renderPlan(g) {
   el.taskPlan.hidden = est === 0;
   if (est === 0) return;
   const hours = Math.round(est * (settings.focus + settings.short) / 6) / 10;
-  el.taskPlan.textContent = `還欠 ${est} 顆 ≈ ${hours} 小時（含休息）`
-    + (done > 0 ? ` · 今天已完成 ${done} 顆` : '');
+  el.taskPlan.textContent = tr('還欠 {n} 顆 ≈ {h} 小時（含休息）', { n: est, h: hours })
+    + (done > 0 ? tr(' · 今天已完成 {n} 顆', { n: done }) : '');
 }
 
 function renderDumpRecall() {
@@ -642,7 +667,7 @@ function updateAudioBtn() {
   el.audioBtn.classList.toggle('on', on);
   el.audioBtn.classList.toggle('playing', on && state.running);
   el.audioBtn.setAttribute('aria-pressed', String(on));
-  el.audioBtn.title = on ? '靜音音景（A）' : '開啟音景（A）';
+  el.audioBtn.title = tr(on ? '靜音音景（A）' : '開啟音景（A）');
 }
 
 function setVolume(v) {
@@ -689,8 +714,8 @@ async function scheduleEndNotification() {
     const focusDone = state.mode === 'focus';
     await n.sendNotification({
       id: NOTI_ID,
-      title: focusDone ? '完成一顆蕃茄 🍅' : '休息結束',
-      body: focusDone ? '辛苦了，去休息一下。' : '回來囉，開始下一輪專注。',
+      title: tr(focusDone ? '完成一顆蕃茄 🍅' : '休息結束'),
+      body: tr(focusDone ? '辛苦了，' : '回來囉，開始下一輪專注。'),
       schedule: { at, repeating: false, allowWhileIdle: true },
     });
   } catch { /* 舊版或不支援排程時，退回前景通知 */ }
@@ -780,7 +805,7 @@ let breathTimer = null;
 let breathStart = 0;
 
 function openRest() {
-  el.restEyebrow.textContent = state.mode === 'long' ? '長休息 · 讓大腦離線' : '休息 · 讓大腦離線';
+  el.restEyebrow.textContent = tr(state.mode === 'long' ? '長休息 · 讓大腦離線' : '休息 · 讓大腦離線');
   el.restNote.textContent = restNote;
   el.restNote.hidden = !restNote;
   el.restTime.textContent = fmt(remaining());
@@ -798,7 +823,7 @@ function openRest() {
   let lastWord = '';
   breathTimer = setInterval(() => {
     const p = (Date.now() - breathStart) % BREATH_CYCLE;
-    const word = p < 4000 ? '吸氣' : p < 6000 ? '屏住' : '吐氣';
+    const word = tr(p < 4000 ? '吸氣' : p < 6000 ? '屏住' : '吐氣');
     if (word !== lastWord) { lastWord = word; el.breathWord.textContent = word; }
   }, 200);
 }
@@ -813,7 +838,7 @@ let pendingNext = null;
 function openCut(nextMode) {
   pendingNext = nextMode;
   const t = activeTask();
-  el.cutTitle.textContent = t ? `「${t.text}」告一段落` : '完成一顆蕃茄 🍅';
+  el.cutTitle.textContent = t ? tr('「{text}」告一段落', { text: t.text }) : tr('完成一顆蕃茄 🍅');
   el.cutInput.value = t?.next || '';
   showOverlay(el.cutOverlay);
   setTimeout(() => el.cutInput.focus(), 320);
@@ -893,11 +918,11 @@ function reset() {
 let restNote = '';
 function progressNote() {
   const t = activeTask();
-  if (!t || t.est <= 0) return '辛苦了，';
+  if (!t || t.est <= 0) return tr('辛苦了，');
   const left = t.est - t.tomatoes;
-  if (left > 0) return `「${t.text}」還差 ${left} 顆，`;
-  if (left === 0) return `「${t.text}」已達規劃的 ${t.est} 顆，`;
-  return `「${t.text}」已超出規劃 ${-left} 顆，`;
+  if (left > 0) return tr('「{text}」還差 {n} 顆，', { text: t.text, n: left });
+  if (left === 0) return tr('「{text}」已達規劃的 {n} 顆，', { text: t.text, n: t.est });
+  return tr('「{text}」已超出規劃 {n} 顆，', { text: t.text, n: -left });
 }
 
 /* 一段結束：計分、提示，再交給 applyNext 換段 */
@@ -938,12 +963,12 @@ function finishSegment({ skipped = false } = {}) {
 
   if (finished === 'focus') {
     const note = progressNote();
-    restNote = note.startsWith('辛苦了') ? '' : note.replace(/，$/, '');
-    notify('完成一顆蕃茄 🍅', `${note}休息 ${settings[next]} 分鐘吧。`);
+    restNote = note === tr('辛苦了，') ? '' : note.replace(/[，.]$/, '');
+    notify(tr('完成一顆蕃茄 🍅'), tr('{note}休息 {m} 分鐘吧。', { note, m: settings[next] }));
     closeRest();
     if (settings.cleanCut) { openCut(next); return; } // 等使用者寫完下次起點
   } else {
-    notify('休息結束', '回來囉，開始下一輪專注。');
+    notify(tr('休息結束'), tr('回來囉，開始下一輪專注。'));
   }
   applyNext(next);
 }
@@ -1021,6 +1046,12 @@ function syncSheetUI() {
   });
   for (const [id, key] of TOGGLES) $(`#${id}`).checked = settings[key];
   $('#optVolume').value = settings.volume;
+  $('#optBirth').value = settings.birth;
+  for (const b of document.querySelectorAll('#langSeg .seg-btn')) {
+    const on = b.dataset.val === I18N.pref;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-checked', String(on));
+  }
   for (const [id, key] of [['beatSeg', 'audio']]) {
     for (const b of document.querySelectorAll(`#${id} .seg-btn`)) {
       const on = b.dataset.val === settings[key];
@@ -1048,6 +1079,7 @@ document.querySelectorAll('.stepper').forEach((st) => {
     settings[key] = Math.min(+st.dataset.max, Math.max(+st.dataset.min, next));
     saveSettings();
     syncSheetUI();
+    if (key === 'lifeTo') { document.dispatchEvent(new CustomEvent('pomo:life-changed')); return; }
     if (state.mode === key && !state.running) reset();
     else render();
   });
@@ -1084,6 +1116,27 @@ for (const [id, key] of [['beatSeg', 'audio']]) {
 
 $('#optVolume').addEventListener('input', (e) => setVolume(+e.target.value));
 
+/* 語言。自動＝跟著瀏覽器，選過就記住 */
+$('#langSeg').addEventListener('click', (e) => {
+  const btn = e.target.closest('.seg-btn');
+  if (btn) I18N.set(btn.dataset.val);
+});
+/* 換語言後，靜態文字由 I18N 自己換掉，JS 產生的要重畫一次 */
+document.addEventListener('pomo:lang-changed', () => {
+  render();      // 計時器與視窗標題
+  renderMeta();  // 模式標籤、播放鍵、底部統計
+  renderTasks(); // 清單與 chip（renderTasks 最後會呼叫 renderChip）
+  renderDumpRecall();
+  syncSheetUI();
+});
+
+/* 生日：歷程頁的人生天數靠這個。清空就不顯示 */
+$('#optBirth').addEventListener('change', (e) => {
+  settings.birth = e.target.value || '';
+  saveSettings();
+  document.dispatchEvent(new CustomEvent('pomo:life-changed'));
+});
+
 el.audioBtn.addEventListener('click', toggleMute);
 
 /* 待辦 */
@@ -1117,7 +1170,7 @@ pinBtn.addEventListener('click', () => applyPin(!settings.pinned));
 el.playBtn.addEventListener('click', requestStart);
 $('#resetBtn').addEventListener('click', reset);
 $('#skipBtn').addEventListener('click', skip);
-$('#setBtn').addEventListener('click', () => openSheet(el.sheet));
+$('#setBtn').addEventListener('click', () => { syncSheetUI(); openSheet(el.sheet); });
 document.querySelectorAll('.close-sheet').forEach((b) => b.addEventListener('click', () => closeSheets()));
 el.backdrop.addEventListener('click', () => closeSheets());
 
@@ -1164,6 +1217,7 @@ syncSheetUI();
 renderTasks();
 renderDumpRecall();
 renderMeta();
+I18N.apply();
 render();
 
 /* 測試鉤子（不影響一般使用） */
@@ -1178,6 +1232,7 @@ window.__pomo = {
   active: () => activeTask(),
   /* 歷程頁面共用：同一份資料、同一種操作 */
   taskRow, setEst, setActive, addTask, toggleDone, removeTask, EST_MAX,
+  life: () => lifeStats(),
   groups: () => groupTasks(),
   audio: () => ({
     ctx: audioCtx?.state || null,

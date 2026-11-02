@@ -26,7 +26,7 @@ html = html
 
 // 樣式與腳本內嵌
 html = html.replace(/[ \t]*<link rel="stylesheet" href="style\.css">\n?/, `<style>\n${read('style.css')}\n</style>\n`);
-for (const js of ['app.js', 'journal.js']) {
+for (const js of ['i18n.js', 'app.js', 'journal.js']) {
   html = html.replace(new RegExp(`[ \\t]*<script src="${js}"></script>\\n?`),
                       `<script>\n${read(js)}\n</script>\n`);
 }
