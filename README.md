@@ -174,6 +174,14 @@ Strata 為開源專案。授權條款待定（候選：AGPL-3.0、Elastic Licens
 
 **吳昀慶（Yun Ching Wu）**
 [LinkedIn ›](https://www.linkedin.com/in/yunching0513/)
+
+
+---
+
+## 著作權 Copyright
+
+© 2026　吳昀慶 Yun-Ching Wu
+授權條款見 [`LICENSE`](LICENSE)　詳細聲明見 [`COPYRIGHT.md`](COPYRIGHT.md)
 ---
 
 ## 著作權 Copyright
