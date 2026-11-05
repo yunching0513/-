@@ -45,3 +45,6 @@ yarn-error.log*
 
 # coverage
 coverage
+
+# Claude Code 的個人設定，不進版控
+.claude/settings.local.json
